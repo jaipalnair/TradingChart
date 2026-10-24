@@ -1,0 +1,5 @@
+{
+  "client_id": "YOUR_DHAN_CLIENT_ID",
+  "access_token": "YOUR_DHAN_ACCESS_TOKEN",
+  "enabled": true
+}
