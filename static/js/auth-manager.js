@@ -270,6 +270,7 @@ class AuthManager {
 
   async handleRegister() {
     const username = document.getElementById('register-username-input')?.value.trim();
+    const email = document.getElementById('register-email-input')?.value.trim();
     const password = document.getElementById('register-password-input')?.value;
     const msgEl = document.getElementById('auth-error-msg');
 
@@ -277,6 +278,13 @@ class AuthManager {
       if (msgEl) {
         msgEl.className = 'text-xs text-[#f23645] font-semibold';
         msgEl.textContent = '✕ Username must be at least 3 characters';
+      }
+      return;
+    }
+    if (!email || !email.includes('@')) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645] font-semibold';
+        msgEl.textContent = '✕ Valid email address is required';
       }
       return;
     }
@@ -297,7 +305,7 @@ class AuthManager {
       const res = await fetch('/api/auth/register', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, email, password })
       });
 
       const data = await res.json();
@@ -308,12 +316,14 @@ class AuthManager {
       if (data.status === 'pending_approval') {
         if (msgEl) {
           msgEl.className = 'text-xs text-amber-400 font-semibold p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 leading-relaxed text-left';
-          msgEl.innerHTML = `<b class="text-amber-300">✓ Registration Submitted!</b><br>Your account is awaiting administrator approval. Please contact the administrator for your 10-character authorization code.`;
+          msgEl.innerHTML = `<b class="text-amber-300">✓ Registration Submitted!</b><br>Your account has been submitted to the administrator for authorization. Once approved, the administrator will provide your 10-character authorization code.`;
         }
         // Reset fields
         const uIn = document.getElementById('register-username-input');
+        const eIn = document.getElementById('register-email-input');
         const pIn = document.getElementById('register-password-input');
         if (uIn) uIn.value = '';
+        if (eIn) eIn.value = '';
         if (pIn) pIn.value = '';
         return;
       }
@@ -869,6 +879,7 @@ class AuthManager {
           <td class="py-2.5 px-3 text-white font-semibold">
             <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 font-bold">${u.username}</span>
           </td>
+          <td class="py-2.5 px-3 text-[#2962ff] font-semibold">${u.email || '—'}</td>
           <td class="py-2.5 px-3 text-[#787b86] text-[11px]">${u.created_at}</td>
           <td class="py-2.5 px-3">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -877,7 +888,7 @@ class AuthManager {
           </td>
           <td class="py-2.5 px-3 text-right">
             <div class="flex items-center justify-end space-x-2">
-              <button onclick="window.authManager.approvePendingUser(${u.id}, '${u.username}')" class="px-3 py-1 rounded text-xs font-semibold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow flex items-center space-x-1 cursor-pointer">
+              <button onclick="window.authManager.approvePendingUser(${u.id}, '${u.username}', '${u.email || ''}')" class="px-3 py-1 rounded text-xs font-semibold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow flex items-center space-x-1 cursor-pointer">
                 <i data-lucide="check" class="w-3.5 h-3.5"></i>
                 <span>Approve & Generate Code</span>
               </button>
@@ -895,8 +906,9 @@ class AuthManager {
     }
   }
 
-  async approvePendingUser(userId, username) {
-    if (!confirm(`Authorize user '${username}'?\nThis will generate a 10-character code for you to provide to the user.`)) {
+  async approvePendingUser(userId, username, email = '') {
+    const emailInfo = email ? ` (${email})` : '';
+    if (!confirm(`Authorize user '${username}'${emailInfo}?\nThis will generate a 10-character code for you to provide to the user.`)) {
       return;
     }
     try {
@@ -915,7 +927,7 @@ class AuthManager {
         try { navigator.clipboard.writeText(code); } catch(e) {}
       }
 
-      alert(`✓ USER APPROVED!\n\nUser: ${username}\n10-Character Authorization Code:\n👉  ${code}  👈\n\n(Copied to your clipboard)\nSend this code to ${username} via WhatsApp or message so they can sign in.`);
+      alert(`✓ USER APPROVED!\n\nUser: ${username}\nEmail: ${email || '—'}\n\n10-Character Authorization Code:\n👉  ${code}  👈\n\n(Copied to your clipboard)\nSend this code to ${username} via WhatsApp, Telegram, or message so they can sign in.`);
 
       await this.loadAdminData();
       await this.loadPendingUsers();

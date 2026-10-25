@@ -1161,7 +1161,7 @@ class LoginRequest(BaseModel):
 class RegisterRequest(BaseModel):
     username: str
     password: str
-    email: Optional[str] = ""
+    email: str
 
 class CreateUserRequest(BaseModel):
     username: str
@@ -1206,19 +1206,29 @@ def register(req: RegisterRequest):
     if not req.password or len(req.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
 
+    email = req.email.strip() if req.email else ""
+    if not email or "@" not in email:
+        raise HTTPException(status_code=400, detail="A valid email address is required (e.g. name@example.com)")
+
+    # Check if email is already taken
+    existing_email_user = database.get_user_by_email(email)
+    if existing_email_user:
+        raise HTTPException(status_code=400, detail="This email address is already registered")
+
     try:
         user = database.create_pending_user(
             username=req.username.strip(),
             password=req.password,
-            email=req.email.strip() if req.email else ""
+            email=email
         )
 
         return {
             "status": "pending_approval",
-            "message": "Registration submitted! Your account is awaiting administrator approval. Please contact the administrator for your 10-character authorization code.",
+            "message": "Registration submitted! Your account has been submitted to the administrator for authorization. Once approved, the administrator will provide your 10-character authorization code.",
             "user": {
                 "id": user["id"],
                 "username": user["username"],
+                "email": user["email"],
                 "approval_status": "pending"
             }
         }
