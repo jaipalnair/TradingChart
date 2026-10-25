@@ -180,7 +180,7 @@ def generate_10char_auth_code() -> str:
     """Generate a clean 10-character alphanumeric authorization code (mix of numbers and uppercase letters)."""
     return "".join(secrets.choice(AUTHCODE_ALPHABET) for _ in range(10))
 
-def create_pending_user(username: str, password: str, email: str) -> dict:
+def create_pending_user(username: str, password: str, email: str = "") -> dict:
     """Register a new user whose account is pending administrator approval."""
     conn = get_connection()
     c = conn.cursor()
@@ -325,7 +325,7 @@ def set_config(key: str, value: str):
     conn.close()
 
 
-def create_user(username: str, password: str, email: str, role: str = "user") -> dict:
+def create_user(username: str, password: str, email: str = "", role: str = "user") -> dict:
     """Create pre-approved user account manually by admin, with 10-char authorization code."""
     conn = get_connection()
     c = conn.cursor()
@@ -554,6 +554,10 @@ def get_traffic_stats():
     c.execute('SELECT COUNT(DISTINCT user_id) as cnt FROM user_sessions')
     active_sessions = c.fetchone()['cnt']
 
+    # Pending user registration requests
+    c.execute("SELECT COUNT(*) as cnt FROM users WHERE approval_status = 'pending'")
+    pending_approvals = c.fetchone()['cnt']
+
     # Requests by top endpoints
     c.execute('''
         SELECT endpoint, COUNT(*) as count 
@@ -570,6 +574,7 @@ def get_traffic_stats():
         "active_users_today": active_today,
         "total_requests": total_requests,
         "active_sessions": active_sessions,
+        "pending_approvals": pending_approvals,
         "top_endpoints": top_endpoints
     }
 

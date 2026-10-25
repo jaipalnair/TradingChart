@@ -279,9 +279,10 @@
       </button>
 
       <!-- Admin Panel Button (shown for Admins) -->
-      <button id="btn-top-admin" class="hidden tv-btn bg-[#1e222d] border border-[#7c3aed]/50 hover:border-[#7c3aed] text-[#c084fc] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm" title="Admin Control Center & Traffic Analytics">
+      <button id="btn-top-admin" class="hidden tv-btn bg-[#1e222d] border border-[#7c3aed]/50 hover:border-[#7c3aed] text-[#c084fc] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm relative" title="Admin Control Center & Traffic Analytics">
         <i data-lucide="shield" class="w-3.5 h-3.5 text-[#a855f7]"></i>
         <span class="text-[11px] font-semibold">Admin</span>
+        <span id="header-admin-notification" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-extrabold animate-pulse font-mono shadow-sm">0</span>
       </button>
 
       <!-- User Profile / Auth Button -->
@@ -738,10 +739,10 @@
         <div>
           <div class="flex items-center justify-between mb-1">
             <label class="block text-[11px] font-semibold text-[#787b86]">Authorization Code</label>
-            <span class="text-[10px] text-amber-400 font-mono">(from approval email)</span>
+            <span class="text-[10px] text-amber-400 font-mono">(from administrator)</span>
           </div>
           <input type="text" id="login-authcode-input" maxlength="10" placeholder="e.g. K9X2B7M4Q1" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white uppercase tracking-wider font-mono placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]">
-          <div class="text-[10px] text-[#787b86] mt-1 leading-tight">Admin leave blank; registered traders enter 10-char code received by email.</div>
+          <div class="text-[10px] text-[#787b86] mt-1 leading-tight">Admin leave blank; registered traders enter the 10-character code provided by admin.</div>
         </div>
         <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow-lg mt-2 cursor-pointer">
           Sign In
@@ -759,16 +760,11 @@
           <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
           <input type="password" id="register-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
         </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email Address <span class="text-rose-400">*</span></label>
-          <input type="email" id="register-email-input" required placeholder="name@example.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-          <div class="text-[10px] text-[#787b86] mt-1">Required: Your 10-character authorization code will be sent to this email upon admin approval.</div>
-        </div>
         <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow-lg mt-2 cursor-pointer">
           Submit for Approval
         </button>
         <div class="text-[10px] text-[#787b86] text-center pt-1 leading-normal">
-          An intimation will be sent to the administrator. Once approved, you will receive your 10-character code.
+          Your request will be submitted for administrator approval. The admin will provide your 10-character authorization code.
         </div>
       </form>
 
@@ -806,6 +802,19 @@
             <i data-lucide="x" class="w-4 h-4"></i>
           </button>
         </div>
+      </div>
+
+      <!-- Notification Banner: Awaiting New User Requests -->
+      <div id="admin-pending-alert-banner" class="hidden px-4 py-2.5 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="bell" class="w-4 h-4 text-amber-400 animate-bounce"></i>
+          <span class="font-bold tracking-wide">Awaiting New User Request:</span>
+          <span id="admin-pending-alert-text">User registration request(s) waiting for your authorization.</span>
+        </div>
+        <button id="btn-banner-go-approvals" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] transition shadow flex items-center space-x-1 cursor-pointer">
+          <span>Review & Approve</span>
+          <i data-lucide="arrow-right" class="w-3 h-3"></i>
+        </button>
       </div>
 
       <!-- KPI Summary Cards -->
@@ -847,10 +856,7 @@
           <i data-lucide="server" class="w-3.5 h-3.5"></i>
           <span>Top Endpoints</span>
         </button>
-        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="smtp">
-          <i data-lucide="mail" class="w-3.5 h-3.5 text-[#2962ff]"></i>
-          <span>Email & SMTP</span>
-        </button>
+
       </div>
 
       <!-- Tab 1: User Accounts Table -->
@@ -907,14 +913,13 @@
             <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
             <span>Pending Registration Requests awaiting Admin Authorization</span>
           </div>
-          <div class="text-[11px] text-[#787b86]">Approving generates a 10-char authorization code & emails it to the user.</div>
+          <div class="text-[11px] text-amber-300 font-medium">Click Approve to generate a 10-character authorization code to give to the user.</div>
         </div>
         <table class="w-full text-left border-collapse">
           <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
             <tr>
               <th class="py-2.5 px-3">ID</th>
               <th class="py-2.5 px-3">Username</th>
-              <th class="py-2.5 px-3">User Email</th>
               <th class="py-2.5 px-3">Requested At</th>
               <th class="py-2.5 px-3">Status</th>
               <th class="py-2.5 px-3 text-right">Approval Actions</th>
@@ -930,99 +935,7 @@
         </div>
       </div>
 
-      <!-- Tab 5: Email & SMTP Settings -->
-      <div id="admin-tab-smtp-content" class="hidden flex-1 overflow-auto p-4 space-y-4">
-        <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
-          <!-- Configuration Card -->
-          <div class="bg-[#131722] border border-[#2a2e39] rounded-lg p-4 space-y-3">
-            <div class="flex items-center justify-between pb-2 border-b border-[#2a2e39]">
-              <h5 class="font-bold text-white text-xs flex items-center space-x-1.5">
-                <i data-lucide="mail-check" class="w-4 h-4 text-[#2962ff]"></i>
-                <span>SMTP Mail Server Configuration</span>
-              </h5>
-              <span id="smtp-status-indicator" class="text-[11px] font-mono px-2 py-0.5 rounded bg-[#2a2e39] text-[#787b86]">Checking...</span>
-            </div>
-            <div>
-              <label class="block text-[11px] text-[#787b86] mb-1">Admin Intimation Email (Receives New User Alerts)</label>
-              <input type="email" id="smtp-admin-email-input" value="jaipal.nair@gmail.com" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#2962ff]">
-            </div>
-            <div class="grid grid-cols-2 gap-2">
-              <div>
-                <label class="block text-[11px] text-[#787b86] mb-1">SMTP Host</label>
-                <input type="text" id="smtp-host-input" value="smtp.gmail.com" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#2962ff]">
-              </div>
-              <div>
-                <label class="block text-[11px] text-[#787b86] mb-1">Port</label>
-                <input type="number" id="smtp-port-input" value="587" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#2962ff]">
-              </div>
-            </div>
-            <div>
-              <label class="block text-[11px] text-[#787b86] mb-1">Sender Email / Username</label>
-              <input type="email" id="smtp-user-input" placeholder="jaipal.nair@gmail.com" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#2962ff]">
-            </div>
-            <div>
-              <label class="block text-[11px] text-[#787b86] mb-1">Gmail App Password (16 characters)</label>
-              <input type="password" id="smtp-password-input" placeholder="Enter Gmail App Password" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-[#2962ff]">
-              <div class="text-[10px] text-[#787b86] mt-0.5">Google Account &rarr; Security &rarr; 2-Step Verification &rarr; App Passwords</div>
-            </div>
-            <div class="pt-2 flex items-center justify-between">
-              <span id="smtp-save-status" class="text-xs"></span>
-              <button id="btn-save-smtp-config" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">
-                Save SMTP Settings
-              </button>
-            </div>
-          </div>
-
-          <!-- Test & Verification Card -->
-          <div class="bg-[#131722] border border-[#2a2e39] rounded-lg p-4 space-y-3 flex flex-col justify-between">
-            <div class="space-y-3">
-              <div class="pb-2 border-b border-[#2a2e39]">
-                <h5 class="font-bold text-white text-xs flex items-center space-x-1.5">
-                  <i data-lucide="send" class="w-4 h-4 text-emerald-400"></i>
-                  <span>Test Email Dispatch</span>
-                </h5>
-                <p class="text-[11px] text-[#787b86]">Send a verification email to confirm email delivery is active.</p>
-              </div>
-              <div>
-                <label class="block text-[11px] text-[#787b86] mb-1">Recipient Test Address</label>
-                <input type="email" id="smtp-test-target-input" value="jaipal.nair@gmail.com" class="w-full bg-[#181b24] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white font-mono focus:outline-none focus:border-emerald-500">
-              </div>
-              <div id="smtp-test-result-msg" class="text-xs"></div>
-            </div>
-            <button id="btn-send-test-email" class="w-full py-2 rounded text-xs font-semibold bg-emerald-600 hover:bg-emerald-500 text-white transition shadow flex items-center justify-center space-x-1.5">
-              <i data-lucide="mail" class="w-3.5 h-3.5"></i>
-              <span>Send Verification Test Email</span>
-            </button>
-          </div>
-        </div>
-
-        <!-- Recent Email Logs Table -->
-        <div class="bg-[#131722] border border-[#2a2e39] rounded-lg overflow-hidden">
-          <div class="px-4 py-2.5 bg-[#181b24] border-b border-[#2a2e39] flex items-center justify-between text-xs">
-            <span class="font-bold text-white">Recent Email Notifications History</span>
-            <button id="btn-refresh-email-logs" class="text-[11px] text-[#787b86] hover:text-white transition flex items-center space-x-1">
-              <i data-lucide="refresh-cw" class="w-3 h-3"></i>
-              <span>Refresh History</span>
-            </button>
-          </div>
-          <table class="w-full text-left border-collapse text-xs">
-            <thead class="bg-[#181b24] border-b border-[#2a2e39] text-[10px] text-[#787b86] uppercase font-semibold">
-              <tr>
-                <th class="py-2 px-3">Time (UTC)</th>
-                <th class="py-2 px-3">Recipient</th>
-                <th class="py-2 px-3">Type</th>
-                <th class="py-2 px-3">Subject</th>
-                <th class="py-2 px-3">Status</th>
-              </tr>
-            </thead>
-            <tbody id="admin-email-logs-table-body" class="divide-y divide-[#2a2e39]/30 font-mono text-[11px]">
-              <!-- Dynamic Logs -->
-            </tbody>
-          </table>
-        </div>
       </div>
-
-    </div>
   </div>
 
   <!-- Admin: Create User Modal -->
@@ -1047,10 +960,8 @@
           <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
           <input type="password" id="new-user-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
         </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email Address <span class="text-rose-400">*</span></label>
-          <input type="email" id="new-user-email-input" required placeholder="friend@domain.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
-          <div class="text-[10px] text-[#787b86] mt-0.5">Required: A 10-character authorization code will be emailed immediately.</div>
+        <div class="text-[11px] text-[#787b86] bg-[#131722] p-2.5 rounded border border-[#2a2e39]">
+          A 10-character authorization code will be generated upon creation for you to share manually.
         </div>
         <div>
           <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Role</label>
@@ -1104,15 +1015,15 @@
   </div>
 
   <!-- Application Logic Scripts -->
-  <script src="/static/js/indicators.js?v=2.18"></script>
-  <script src="/static/js/drawings.js?v=2.18"></script>
-  <script src="/static/js/data-feed.js?v=2.18"></script>
-  <script src="/static/js/chart-instance.js?v=2.18"></script>
-  <script src="/static/js/multi-chart-grid.js?v=2.18"></script>
-  <script src="/static/js/watchlist.js?v=2.18"></script>
-  <script src="/static/js/paper-trading.js?v=2.18"></script>
-  <script src="/static/js/orders-manager.js?v=2.18"></script>
-  <script src="/static/js/auth-manager.js?v=2.18"></script>
-  <script src="/static/js/app.js?v=2.18"></script>
+  <script src="/static/js/indicators.js?v=2.19"></script>
+  <script src="/static/js/drawings.js?v=2.19"></script>
+  <script src="/static/js/data-feed.js?v=2.19"></script>
+  <script src="/static/js/chart-instance.js?v=2.19"></script>
+  <script src="/static/js/multi-chart-grid.js?v=2.19"></script>
+  <script src="/static/js/watchlist.js?v=2.19"></script>
+  <script src="/static/js/paper-trading.js?v=2.19"></script>
+  <script src="/static/js/orders-manager.js?v=2.19"></script>
+  <script src="/static/js/auth-manager.js?v=2.19"></script>
+  <script src="/static/js/app.js?v=2.19"></script>
 </body>
 </html>
