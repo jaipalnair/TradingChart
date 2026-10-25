@@ -209,21 +209,34 @@ SUPPORTED_SYMBOLS = [
     {"symbol": "GBPUSD=X", "name": "GBP / USD", "exchange": "FX", "category": "Forex", "base": "GBP", "quote": "USD", "precision": 5, "icon": "💷"}
 ]
 
+def normalize_interval(interval: str) -> str:
+    if not interval:
+        return "5m"
+    s = str(interval).strip()
+    if s == "1M" or s.lower() in ["1mo", "1month", "month"]:
+        return "1M"
+    return s.lower()
+
 # Timeframe translation
 BINANCE_TIMEFRAMES = {
-    "1s": "1s", "1m": "1m", "3m": "3m", "5m": "5m", "15m": "15m",
-    "30m": "30m", "1h": "1h", "2h": "2h", "4h": "4h", "1d": "1d", "1w": "1w"
+    "1s": "1s", "1m": "1m", "2m": "1m", "3m": "3m", "5m": "5m", "10m": "5m", "15m": "15m",
+    "30m": "30m", "1h": "1h", "2h": "2h", "4h": "4h", "1d": "1d", "1w": "1w", "1M": "1M"
 }
 
 YFINANCE_INTERVALS = {
     "1m": ("1m", "7d"),
+    "2m": ("2m", "60d"),
+    "3m": ("1m", "7d"),
     "5m": ("5m", "60d"),
+    "10m": ("5m", "60d"),
     "15m": ("15m", "60d"),
     "30m": ("30m", "60d"),
     "1h": ("60m", "730d"),
-    "4h": ("60m", "730d"), # aggregate client side
+    "2h": ("60m", "730d"),
+    "4h": ("60m", "730d"),
     "1d": ("1d", "5y"),
-    "1w": ("1wk", "10y")
+    "1w": ("1wk", "10y"),
+    "1M": ("1mo", "10y")
 }
 
 def get_base_price_for_symbol(symbol: str) -> float:
@@ -267,9 +280,11 @@ def get_base_price_for_symbol(symbol: str) -> float:
 
 def generate_nse_timestamps(limit: int = 300, interval_str: str = "5m") -> List[int]:
     """Generate realistic timestamps strictly within NSE trading hours (09:15 to 15:30 IST, Mon-Fri)."""
+    norm = normalize_interval(interval_str)
     interval_mins = {
-        "1m": 1, "3m": 3, "5m": 5, "15m": 15, "30m": 30, "1h": 60, "2h": 120, "4h": 240, "1d": 1440, "1w": 10080
-    }.get(interval_str, 5)
+        "1m": 1, "2m": 2, "3m": 3, "5m": 5, "10m": 10, "15m": 15, "30m": 30,
+        "1h": 60, "2h": 120, "4h": 240, "1d": 1440, "1w": 10080, "1M": 43200
+    }.get(norm, 5)
 
     ist = timezone(timedelta(hours=5, minutes=30))
     now = datetime.now(ist)
@@ -277,12 +292,13 @@ def generate_nse_timestamps(limit: int = 300, interval_str: str = "5m") -> List[
     if interval_mins >= 1440:
         cur = now
         days = []
+        step_days = 7 if norm == "1w" else (30 if norm == "1M" else 1)
         while len(days) < limit:
             while cur.weekday() >= 5: # Sat=5, Sun=6
                 cur -= timedelta(days=1)
             bar_dt = cur.replace(hour=9, minute=15, second=0, microsecond=0)
             days.append(int(bar_dt.timestamp()))
-            cur -= timedelta(days=1)
+            cur -= timedelta(days=step_days)
         days.reverse()
         return days
 
@@ -326,10 +342,11 @@ def generate_simulated_candles(symbol: str, interval: str, limit: int = 300) -> 
     if not is_crypto and not is_us:
         timestamps = generate_nse_timestamps(limit, interval)
     else:
+        norm = normalize_interval(interval)
         interval_seconds = {
-            "1m": 60, "3m": 180, "5m": 300, "15m": 900, "30m": 1800,
-            "1h": 3600, "2h": 7200, "4h": 14400, "1d": 86400, "1w": 604800
-        }.get(interval, 300)
+            "1m": 60, "2m": 120, "3m": 180, "5m": 300, "10m": 600, "15m": 900, "30m": 1800,
+            "1h": 3600, "2h": 7200, "4h": 14400, "1d": 86400, "1w": 604800, "1M": 2592000
+        }.get(norm, 300)
         now_ts = int(time.time())
         start_ts = (now_ts - (limit * interval_seconds)) // interval_seconds * interval_seconds
         timestamps = [start_ts + (i * interval_seconds) for i in range(limit)]
@@ -547,18 +564,19 @@ def fetch_dhan_candles(symbol: str, interval: str, limit: int = 500) -> Optional
     from_date = (today - timedelta(days=25)).strftime("%Y-%m-%d")
     to_date = today.strftime("%Y-%m-%d")
 
+    norm = normalize_interval(interval)
     int_map = {
-        "1m": 1, "5m": 5, "15m": 15, "25m": 25, "1h": 60, "60m": 60
+        "1m": 1, "2m": 1, "3m": 1, "5m": 5, "10m": 5, "15m": 15, "25m": 25, "30m": 15, "1h": 60, "60m": 60, "2h": 60, "4h": 60
     }
-    dhan_interval = int_map.get(interval, 5)
+    dhan_interval = int_map.get(norm, 5)
 
     try:
-        if interval in ["1d", "1w"]:
+        if norm in ["1d", "1w", "1M"]:
             resp = client.historical_daily_data(
                 security_id=sec_id,
                 exchange_segment=seg,
                 instrument_type=inst,
-                from_date=(today - timedelta(days=365)).strftime("%Y-%m-%d"),
+                from_date=(today - timedelta(days=1825)).strftime("%Y-%m-%d"),
                 to_date=to_date
             )
         else:
@@ -647,40 +665,41 @@ def get_symbols():
 @app.get("/api/history")
 def get_history(
     symbol: str = Query(..., description="Ticker symbol, e.g. BTCUSDT, AAPL"),
-    interval: str = Query("1h", description="Candle interval, e.g. 1m, 5m, 15m, 1h, 1d"),
+    interval: str = Query("5m", description="Candle interval, e.g. 1m, 2m, 3m, 5m, 10m, 15m, 30m, 1h, 2h, 4h, 1d, 1w, 1M"),
     limit: int = Query(500, ge=10, le=1500, description="Number of bars to return")
 ):
     """Retrieve historical candlestick bars."""
     symbol_upper = symbol.upper()
+    norm_interval = normalize_interval(interval)
     is_crypto = any(c in symbol_upper for c in ["USDT", "BTC", "ETH", "SOL", "BNB", "DOGE", "XRP", "ADA", "AVAX", "NEAR", "SUI"])
     
     candles = None
     source = "simulation"
 
     if is_crypto:
-        candles = fetch_binance_klines(symbol_upper, interval, limit)
+        candles = fetch_binance_klines(symbol_upper, norm_interval, limit)
         if candles:
             source = "binance"
     else:
         # Check DhanHQ live historical candle feed
-        candles = fetch_dhan_candles(symbol_upper, interval, limit)
+        candles = fetch_dhan_candles(symbol_upper, norm_interval, limit)
         if candles:
             source = "dhan"
 
     if not candles:
-        candles = fetch_yfinance_klines(symbol_upper, interval, limit)
+        candles = fetch_yfinance_klines(symbol_upper, norm_interval, limit)
         if candles:
             source = "yfinance"
 
     if not candles:
         # Fallback to simulated Brownian motion candles
-        candles = generate_simulated_candles(symbol_upper, interval, limit)
+        candles = generate_simulated_candles(symbol_upper, norm_interval, limit)
         source = "simulation"
 
     return {
         "status": "ok",
         "symbol": symbol_upper,
-        "interval": interval,
+        "interval": norm_interval,
         "count": len(candles),
         "source": source,
         "data": candles

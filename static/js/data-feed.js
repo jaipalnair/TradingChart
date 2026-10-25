@@ -200,9 +200,11 @@ class DataFeedManager {
   }
 
   generateNSETimestamps(limit = 300, interval = '5m') {
+    const norm = interval === '1M' ? '1M' : (interval || '5m').toLowerCase();
     const intervalMins = {
-      '1m': 1, '3m': 3, '5m': 5, '15m': 15, '30m': 30, '1h': 60, '2h': 120, '4h': 240, '1d': 1440, '1w': 10080
-    }[interval] || 5;
+      '1m': 1, '2m': 2, '3m': 3, '5m': 5, '10m': 10, '15m': 15, '30m': 30,
+      '1h': 60, '2h': 120, '4h': 240, '1d': 1440, '1w': 10080, '1M': 43200
+    }[norm] || 5;
 
     const now = new Date();
     // Convert to Indian Standard Time (UTC + 5:30)
@@ -212,6 +214,7 @@ class DataFeedManager {
 
     if (intervalMins >= 1440) {
       const days = [];
+      const stepDays = norm === '1w' ? 7 : (norm === '1M' ? 30 : 1);
       while (days.length < limit) {
         while (cur.getDay() === 0 || cur.getDay() === 6) {
           cur.setDate(cur.getDate() - 1);
@@ -219,7 +222,7 @@ class DataFeedManager {
         cur.setHours(9, 15, 0, 0);
         const epoch = Math.floor((cur.getTime() - (330 * 60000)) / 1000);
         days.push(epoch);
-        cur.setDate(cur.getDate() - 1);
+        cur.setDate(cur.getDate() - stepDays);
       }
       return days.reverse();
     }
@@ -269,15 +272,16 @@ class DataFeedManager {
     const isCrypto = symUpper.includes('USDT') || ['BTC', 'ETH', 'SOL', 'BNB'].some(c => symUpper.includes(c));
     const isUS = ['AAPL', 'NVDA', 'TSLA', 'MSFT', 'AMZN', 'GOOGL', 'META', 'SPY', 'QQQ'].some(u => symUpper.includes(u));
 
+    const norm = interval === '1M' ? '1M' : (interval || '5m').toLowerCase();
     let timestamps = [];
     if (!isCrypto && !isUS) {
       // Indian market assets: Strictly use NSE session timestamps in IST
-      timestamps = this.generateNSETimestamps(limit, interval);
+      timestamps = this.generateNSETimestamps(limit, norm);
     } else {
       const intervalSecs = {
-        '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800,
-        '1h': 3600, '2h': 7200, '4h': 14400, '1d': 86400, '1w': 604800
-      }[interval] || 300;
+        '1m': 60, '2m': 120, '3m': 180, '5m': 300, '10m': 600, '15m': 900, '30m': 1800,
+        '1h': 3600, '2h': 7200, '4h': 14400, '1d': 86400, '1w': 604800, '1M': 2592000
+      }[norm] || 300;
       const now = Math.floor(Date.now() / 1000);
       const start = Math.floor((now - (limit * intervalSecs)) / intervalSecs) * intervalSecs;
       timestamps = Array.from({ length: limit }, (_, i) => start + (i * intervalSecs));
@@ -354,7 +358,8 @@ class DataFeedManager {
     let biSymbol = symbol.replace('/', '').replace('-', '').toLowerCase();
     if (!biSymbol.endsWith('usdt')) biSymbol += 'usdt';
 
-    const biInterval = interval.toLowerCase();
+    const norm = interval === '1M' ? '1M' : (interval || '5m').toLowerCase();
+    const biInterval = norm === '1M' ? '1M' : (norm === '2m' ? '1m' : (norm === '10m' ? '5m' : norm));
     const streamName = `${biSymbol}@kline_${biInterval}`;
     const wsUrl = `wss://stream.binance.com:9443/ws/${streamName}`;
 
@@ -415,9 +420,11 @@ class DataFeedManager {
       ? chart.candles[chart.candles.length - 1].close
       : this.getDefaultPriceForSymbol(symbol);
 
+    const norm = interval === '1M' ? '1M' : (interval || '5m').toLowerCase();
     const intervalSecs = {
-      '1m': 60, '3m': 180, '5m': 300, '15m': 900, '30m': 1800, '1h': 3600, '2h': 7200, '4h': 14400, '1d': 86400, '1w': 604800
-    }[interval] || 300;
+      '1m': 60, '2m': 120, '3m': 180, '5m': 300, '10m': 600, '15m': 900, '30m': 1800,
+      '1h': 3600, '2h': 7200, '4h': 14400, '1d': 86400, '1w': 604800, '1M': 2592000
+    }[norm] || 300;
 
     let currentBarTime = Math.floor(Date.now() / 1000 / intervalSecs) * intervalSecs;
     let currentBar = {
