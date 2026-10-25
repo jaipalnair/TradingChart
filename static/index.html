@@ -3428,6 +3428,11 @@
 
         </button>
 
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="backup">
+          <i data-lucide="database" class="w-3.5 h-3.5"></i>
+          <span>Backup & Restore</span>
+        </button>
+
 
 
 
@@ -3666,6 +3671,9 @@
 
 
 
+
+
+
         <table class="w-full text-left border-collapse">
 
 
@@ -3742,6 +3750,89 @@
 
 
 
+      </div>
+
+      <!-- Tab 5: Database Backup & Restore -->
+      <div id="admin-tab-backup-content" class="hidden flex-1 overflow-auto p-6 space-y-6">
+        <div class="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <!-- Backup Card -->
+          <div class="bg-[#181b24] p-5 rounded-xl border border-[#2a2e39] space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="p-2.5 bg-emerald-500/10 rounded-lg text-emerald-400">
+                <i data-lucide="download-cloud" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-semibold text-white">Download Database Backup</h4>
+                <p class="text-xs text-[#787b86]">Export an atomic hot backup of trading_platform.db</p>
+              </div>
+            </div>
+            
+            <div class="bg-[#12141a] p-3 rounded-lg border border-[#2a2e39]/60 text-xs space-y-2">
+              <div class="flex justify-between text-[#787b86]">
+                <span>Database File:</span>
+                <span class="text-[#d1d4dc] font-mono">trading_platform.db</span>
+              </div>
+              <div class="flex justify-between text-[#787b86]">
+                <span>Current Size:</span>
+                <span id="admin-db-size-val" class="text-emerald-400 font-semibold">Loading...</span>
+              </div>
+              <div class="flex justify-between text-[#787b86]">
+                <span>Registered Users:</span>
+                <span id="admin-db-users-val" class="text-[#d1d4dc] font-semibold">Loading...</span>
+              </div>
+            </div>
+
+            <p class="text-xs text-[#787b86] leading-relaxed">
+              Downloads a timestamped SQLite database file containing all registered user credentials, passwords, preferences, and approval records.
+            </p>
+
+            <button id="btn-admin-download-backup" class="w-full py-2.5 px-4 bg-emerald-600 hover:bg-emerald-500 text-white font-medium text-xs rounded-lg transition flex items-center justify-center space-x-2 shadow-lg shadow-emerald-950/40">
+              <i data-lucide="download" class="w-4 h-4"></i>
+              <span>Download Backup (.db)</span>
+            </button>
+          </div>
+
+          <!-- Restore Card -->
+          <div class="bg-[#181b24] p-5 rounded-xl border border-[#2a2e39] space-y-4">
+            <div class="flex items-center space-x-3">
+              <div class="p-2.5 bg-amber-500/10 rounded-lg text-amber-400">
+                <i data-lucide="upload-cloud" class="w-6 h-6"></i>
+              </div>
+              <div>
+                <h4 class="text-sm font-semibold text-white">Restore Database</h4>
+                <p class="text-xs text-[#787b86]">Upload a previously backed-up .db file to restore users</p>
+              </div>
+            </div>
+
+            <div class="border-2 border-dashed border-[#2a2e39] hover:border-amber-500/50 transition rounded-xl p-4 text-center cursor-pointer bg-[#12141a]/50" id="admin-restore-dropzone" onclick="document.getElementById('admin-restore-file-input').click()">
+              <input type="file" id="admin-restore-file-input" accept=".db" class="hidden">
+              <i data-lucide="file-up" class="w-8 h-8 text-[#787b86] mx-auto mb-2"></i>
+              <div class="text-xs text-[#d1d4dc] font-medium" id="admin-restore-file-name">Click or drag .db file here</div>
+              <div class="text-[10px] text-[#787b86] mt-1">Accepts valid SQLite database files (*.db)</div>
+            </div>
+
+            <div class="p-3 bg-amber-500/10 border border-amber-500/20 rounded-lg text-[11px] text-amber-300 flex items-start space-x-2">
+              <i data-lucide="alert-triangle" class="w-4 h-4 shrink-0 mt-0.5"></i>
+              <span>Restoring safely copies user accounts and auth records into the live database. Validation is performed automatically.</span>
+            </div>
+
+            <button id="btn-admin-restore-backup" disabled class="w-full py-2.5 px-4 bg-amber-600/50 text-white/50 font-medium text-xs rounded-lg transition flex items-center justify-center space-x-2 cursor-not-allowed">
+              <i data-lucide="refresh-cw" class="w-4 h-4"></i>
+              <span>Upload & Restore Database</span>
+            </button>
+          </div>
+        </div>
+
+        <!-- Render / Cloud Deployment Persistence Advisory -->
+        <div class="bg-[#181b24] p-4 rounded-xl border border-[#2a2e39] space-y-2">
+          <div class="flex items-center space-x-2 text-xs font-semibold text-white">
+            <i data-lucide="info" class="w-4 h-4 text-sky-400"></i>
+            <span>Backup Tips & Cloud Persistence (Render.com)</span>
+          </div>
+          <p class="text-xs text-[#787b86] leading-relaxed">
+            Free cloud instances (like Render) have an ephemeral disk that resets when a service reboots or redeploys. To preserve your approved user list between updates, download a backup before major redeploys and simply use <strong>Restore Database</strong> to import your users in seconds!
+          </p>
+        </div>
       </div>
 
 
@@ -4102,7 +4193,7 @@
 
 
 
-  <script src="/static/js/auth-manager.js?v=2.25"></script>
+  <script src="/static/js/auth-manager.js?v=2.26"></script>
 
 
 

@@ -130,6 +130,31 @@ class AuthManager {
 
     // Admin banner review button
     document.getElementById('btn-banner-go-approvals')?.addEventListener('click', () => this.switchAdminTab('approvals'));
+
+    // Database Backup & Restore Listeners
+    document.getElementById('btn-admin-download-backup')?.addEventListener('click', () => {
+      this.handleDownloadBackup();
+    });
+
+    const restoreInput = document.getElementById('admin-restore-file-input');
+    const restoreBtn = document.getElementById('btn-admin-restore-backup');
+    const restoreName = document.getElementById('admin-restore-file-name');
+
+    restoreInput?.addEventListener('change', () => {
+      if (restoreInput.files && restoreInput.files.length > 0) {
+        const file = restoreInput.files[0];
+        if (restoreName) restoreName.textContent = `${file.name} (${(file.size / 1024).toFixed(1)} KB)`;
+        if (restoreBtn) {
+          restoreBtn.disabled = false;
+          restoreBtn.classList.remove('bg-amber-600/50', 'text-white/50', 'cursor-not-allowed');
+          restoreBtn.classList.add('bg-amber-600', 'hover:bg-amber-500', 'text-white', 'cursor-pointer');
+        }
+      }
+    });
+
+    restoreBtn?.addEventListener('click', () => {
+      this.handleRestoreBackup();
+    });
   }
 
   async fetchCurrentUser() {
@@ -466,7 +491,7 @@ class AuthManager {
       }
     });
 
-    ['admin-tab-users-content', 'admin-tab-approvals-content', 'admin-tab-activity-content', 'admin-tab-endpoints-content'].forEach(id => {
+    ['admin-tab-users-content', 'admin-tab-approvals-content', 'admin-tab-activity-content', 'admin-tab-endpoints-content', 'admin-tab-backup-content'].forEach(id => {
       document.getElementById(id)?.classList.add('hidden');
     });
 
@@ -479,6 +504,9 @@ class AuthManager {
       document.getElementById('admin-tab-activity-content')?.classList.remove('hidden');
     } else if (tab === 'endpoints') {
       document.getElementById('admin-tab-endpoints-content')?.classList.remove('hidden');
+    } else if (tab === 'backup') {
+      document.getElementById('admin-tab-backup-content')?.classList.remove('hidden');
+      this.loadAdminDbInfo();
     }
     if (window.lucide) window.lucide.createIcons();
   }
@@ -1033,6 +1061,114 @@ class AuthManager {
       toast.classList.remove('opacity-100');
       toast.classList.add('opacity-0', 'pointer-events-none');
     }, 2200);
+  }
+
+  async loadAdminDbInfo() {
+    try {
+      const res = await fetch('/api/admin/db-info', { headers: this.getAuthHeaders() });
+      if (res.ok) {
+        const data = await res.json();
+        const info = data.db_info || {};
+        const sizeEl = document.getElementById('admin-db-size-val');
+        const usersEl = document.getElementById('admin-db-users-val');
+        if (sizeEl) sizeEl.textContent = `${info.size_kb || 0} KB`;
+        if (usersEl) usersEl.textContent = `${info.total_users || 0} users (${info.pending_approvals || 0} pending approvals)`;
+      }
+    } catch (e) {
+      console.error('Failed to load DB info:', e);
+    }
+  }
+
+  async handleDownloadBackup() {
+    const btn = document.getElementById('btn-admin-download-backup');
+    const origHtml = btn ? btn.innerHTML : '';
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Generating Backup...`;
+      }
+      const res = await fetch('/api/admin/backup-db', { headers: this.getAuthHeaders() });
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({}));
+        throw new Error(err.detail || 'Backup creation failed');
+      }
+      const blob = await res.blob();
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      const disposition = res.headers.get('Content-Disposition');
+      let filename = `trading_platform_backup_${new Date().toISOString().slice(0,10)}.db`;
+      if (disposition && disposition.indexOf('filename=') !== -1) {
+        filename = disposition.split('filename=')[1].replace(/["']/g, '').trim();
+      }
+      a.download = filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      window.URL.revokeObjectURL(url);
+      this.showMiniToast(`Backup downloaded: ${filename}`);
+    } catch (e) {
+      alert(`Backup failed: ${e.message}`);
+    } finally {
+      if (btn) {
+        btn.disabled = false;
+        btn.innerHTML = origHtml;
+      }
+    }
+  }
+
+  async handleRestoreBackup() {
+    const fileInput = document.getElementById('admin-restore-file-input');
+    if (!fileInput || !fileInput.files || fileInput.files.length === 0) {
+      alert('Please select a .db backup file to restore.');
+      return;
+    }
+    const file = fileInput.files[0];
+    if (!confirm(`Are you sure you want to restore the database from "${file.name}"?\n\nThis will synchronize user credentials and authorization states from this backup.`)) {
+      return;
+    }
+
+    const btn = document.getElementById('btn-admin-restore-backup');
+    const origHtml = btn ? btn.innerHTML : '';
+    try {
+      if (btn) {
+        btn.disabled = true;
+        btn.innerHTML = `<svg class="animate-spin -ml-1 mr-2 h-4 w-4 text-white inline" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24"><circle class="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" stroke-width="4"></circle><path class="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8v8H4z"></path></svg> Validating & Restoring...`;
+      }
+      const headers = this.getAuthHeaders();
+      headers['Content-Type'] = 'application/octet-stream';
+
+      const res = await fetch('/api/admin/restore-db', {
+        method: 'POST',
+        headers: headers,
+        body: file
+      });
+
+      const data = await res.json().catch(() => ({}));
+      if (!res.ok) {
+        throw new Error(data.detail || 'Restore failed');
+      }
+
+      alert(data.message || 'Database restored successfully!');
+      this.showMiniToast('Database restored successfully!');
+
+      fileInput.value = '';
+      const restoreName = document.getElementById('admin-restore-file-name');
+      if (restoreName) restoreName.textContent = 'Click or drag .db file here';
+      if (btn) {
+        btn.classList.add('bg-amber-600/50', 'text-white/50', 'cursor-not-allowed');
+        btn.classList.remove('bg-amber-600', 'hover:bg-amber-500', 'text-white', 'cursor-pointer');
+      }
+
+      await this.loadAdminData();
+      await this.loadAdminDbInfo();
+    } catch (e) {
+      alert(`Restore failed: ${e.message}`);
+    } finally {
+      if (btn) {
+        btn.innerHTML = origHtml;
+      }
+    }
   }
 
   copyToClipboard(text, customMsg = '') {

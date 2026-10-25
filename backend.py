@@ -1,3 +1,4 @@
+import tempfile
 """
 TradingView Multi-Chart Web Platform Backend
 Powered by FastAPI, Uvicorn, yfinance, and Binance Public APIs
@@ -1498,6 +1499,63 @@ def serve_index():
         response.headers["Expires"] = "0"
         return response
     return HTMLResponse("<h3>TradingChart is loading...</h3>")
+
+@app.get("/api/admin/db-info")
+def get_admin_db_info(admin: dict = Depends(get_admin_user)):
+    """Get database file size and statistics."""
+    info = database.get_database_file_info()
+    user_stats = database.get_traffic_stats()
+    info["total_users"] = user_stats.get("total_users", 0)
+    info["pending_approvals"] = user_stats.get("pending_approvals", 0)
+    return {"status": "success", "db_info": info}
+
+@app.get("/api/admin/backup-db")
+def admin_download_backup(admin: dict = Depends(get_admin_user)):
+    """Safely download an atomic SQLite hot backup of trading_platform.db."""
+    temp_dir = tempfile.gettempdir()
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    backup_filename = f"trading_platform_backup_{timestamp}.db"
+    backup_path = os.path.join(temp_dir, backup_filename)
+
+    database.backup_database(backup_path)
+
+    return FileResponse(
+        backup_path,
+        media_type="application/x-sqlite3",
+        filename=backup_filename,
+        headers={"Content-Disposition": f"attachment; filename={backup_filename}"}
+    )
+
+@app.post("/api/admin/restore-db")
+async def admin_upload_restore(request: Request, admin: dict = Depends(get_admin_user)):
+    """Restore trading_platform.db from an uploaded SQLite backup file."""
+    content = await request.body()
+    if len(content) < 100:
+        raise HTTPException(status_code=400, detail="Uploaded file is empty or too small to be a database.")
+
+    temp_dir = tempfile.gettempdir()
+    temp_file = os.path.join(temp_dir, f"restore_{datetime.now().strftime('%Y%m%d_%H%M%S')}.db")
+
+    try:
+        with open(temp_file, "wb") as f:
+            f.write(content)
+
+        res = database.restore_database(temp_file)
+        return {
+            "status": "success",
+            "message": f"Database successfully restored! Found {res['user_count']} user accounts.",
+            "user_count": res["user_count"]
+        }
+    except ValueError as ve:
+        raise HTTPException(status_code=400, detail=str(ve))
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Database restore failed: {str(e)}")
+    finally:
+        if os.path.exists(temp_file):
+            try:
+                os.remove(temp_file)
+            except Exception:
+                pass
 
 if __name__ == "__main__":
     import uvicorn

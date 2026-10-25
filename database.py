@@ -590,3 +590,56 @@ def get_recent_activity(limit: int = 50):
     rows = [dict(r) for r in c.fetchall()]
     conn.close()
     return rows
+
+
+def backup_database(destination_path: str):
+    """Safely create an atomic online hot backup of trading_platform.db."""
+    src = sqlite3.connect(DB_PATH)
+    dst = sqlite3.connect(destination_path)
+    src.backup(dst)
+    dst.close()
+    src.close()
+
+def restore_database(source_path: str) -> dict:
+    """Safely restore trading_platform.db from an uploaded SQLite database file."""
+    # 1. Validate SQLite 3 header
+    with open(source_path, "rb") as f:
+        header = f.read(16)
+        if not header.startswith(b"SQLite format 3"):
+            raise ValueError("Invalid database file: Not a valid SQLite 3 database.")
+
+    # 2. Verify schema (users table must exist)
+    test_conn = sqlite3.connect(source_path)
+    c = test_conn.cursor()
+    c.execute("SELECT name FROM sqlite_master WHERE type='table' AND name='users'")
+    if not c.fetchone():
+        test_conn.close()
+        raise ValueError("Invalid database file: Missing 'users' table.")
+    
+    # Check user count in backup
+    c.execute("SELECT count(*) FROM users")
+    user_count = c.fetchone()[0]
+    test_conn.close()
+
+    # 3. Perform online safe restore into live DB
+    src = sqlite3.connect(source_path)
+    dst = sqlite3.connect(DB_PATH)
+    src.backup(dst)
+    dst.close()
+    src.close()
+
+    return {"user_count": user_count}
+
+def get_database_file_info() -> dict:
+    """Get metadata about the current database file."""
+    if not os.path.exists(DB_PATH):
+        return {"exists": False, "size_bytes": 0, "size_kb": 0, "path": DB_PATH}
+    size = os.path.getsize(DB_PATH)
+    mtime = os.path.getmtime(DB_PATH)
+    return {
+        "exists": True,
+        "size_bytes": size,
+        "size_kb": round(size / 1024, 2),
+        "path": DB_PATH,
+        "last_modified": datetime.fromtimestamp(mtime).strftime("%Y-%m-%d %H:%M:%S")
+    }
