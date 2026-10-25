@@ -136,7 +136,10 @@ class ChartInstance {
           </div>
         </div>
         <div class="chart-tile-actions">
-          <button class="tile-action-btn btn-refresh-tile" title="Refresh Chart Data">
+          <button class="tile-action-btn btn-autoscale-tile" title="Auto Scale Price & Fit (Double-click chart)">
+            <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+          </button>
+          <button class="tile-action-btn btn-refresh-tile" title="Refresh Chart Data & Auto-Fit">
             <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
           </button>
           <button class="tile-action-btn btn-timeframe" title="Change Timeframe">
@@ -156,10 +159,11 @@ class ChartInstance {
           </button>
         </div>
       </div>
-      <div class="chart-canvas-wrapper">
+      <div class="chart-canvas-wrapper relative">
         <div class="chart-indicators-legend"></div>
         <div class="chart-tv-container" id="tv_chart_${this.id}"></div>
         <canvas class="drawing-overlay-canvas"></canvas>
+        <button type="button" class="btn-chart-corner-auto" title="Auto Scale Price Range (Double-click chart to reset)">auto</button>
       </div>
     `;
 
@@ -207,10 +211,31 @@ class ChartInstance {
       window.app.openSymbolSearchModal();
     });
 
+    const autoScaleBtn = this.container.querySelector('.btn-autoscale-tile');
+    autoScaleBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.resetPriceScale();
+    });
+
+    const cornerAutoBtn = this.container.querySelector('.btn-chart-corner-auto');
+    cornerAutoBtn?.addEventListener('click', (e) => {
+      e.stopPropagation();
+      this.resetPriceScale();
+    });
+
     const refBtn = this.container.querySelector('.btn-refresh-tile');
     refBtn?.addEventListener('click', (e) => {
       e.stopPropagation();
+      this.resetPriceScale();
       this.loadData();
+    });
+
+    // Double-click anywhere on chart canvas or drawing overlay resets price scale to Auto
+    this.tvContainer?.addEventListener('dblclick', () => {
+      this.resetPriceScale();
+    });
+    this.overlayCanvas?.addEventListener('dblclick', () => {
+      this.resetPriceScale();
     });
 
     const tfBtn = this.container.querySelector('.btn-timeframe');
@@ -443,6 +468,44 @@ class ChartInstance {
     }
   }
 
+  resetPriceScale() {
+    if (!this.chart) return;
+    try {
+      this.chart.priceScale('right').applyOptions({
+        autoScale: true,
+        scaleMargins: {
+          top: 0.1,
+          bottom: 0.2
+        }
+      });
+      if (this.mainSeries && typeof this.mainSeries.priceScale === 'function') {
+        const ps = this.mainSeries.priceScale();
+        if (ps && typeof ps.applyOptions === 'function') {
+          ps.applyOptions({ autoScale: true });
+        }
+      }
+      if (this.volumeSeries && typeof this.volumeSeries.priceScale === 'function') {
+        try {
+          this.volumeSeries.priceScale().applyOptions({
+            scaleMargins: { top: 0.82, bottom: 0 }
+          });
+        } catch (e) {}
+      }
+      this.chart.timeScale().fitContent();
+
+      // Ensure that once the DOM/canvas repaints, autoScale is re-evaluated
+      setTimeout(() => {
+        if (!this.chart) return;
+        try {
+          this.chart.priceScale('right').applyOptions({ autoScale: true });
+          this.chart.timeScale().fitContent();
+        } catch (e) {}
+      }, 60);
+    } catch (e) {
+      console.warn('Error resetting price scale:', e);
+    }
+  }
+
   async loadData() {
     if (this.unsubscribeLive) {
       this.unsubscribeLive();
@@ -451,6 +514,9 @@ class ChartInstance {
 
     this.symbolEl.textContent = this.symbol;
     this.intervalEl.textContent = this.interval.toUpperCase();
+
+    // Instantly reset price scale so chart is NEVER stuck off-screen or in manual pan range
+    this.resetPriceScale();
 
     // 1. Render initial fallback candles so chart NEVER blanks out
     this.candles = window.dataFeed.generateFallbackCandles(this.symbol, this.interval, 200);
@@ -476,9 +542,9 @@ class ChartInstance {
   renderData(shouldFitContent = false) {
     if (!this.candles || this.candles.length === 0 || !this.mainSeries) return;
 
-    // Filter, validate, deduplicate and sort chronologically
+    // Filter, validate, deduplicate and sort chronologically (strictly positive prices)
     let cleanCandles = this.candles
-      .filter(c => c && c.time && typeof c.close === 'number' && !isNaN(c.close))
+      .filter(c => c && c.time && typeof c.close === 'number' && !isNaN(c.close) && c.close > 0 && c.high > 0 && c.low > 0 && c.open > 0)
       .sort((a, b) => a.time - b.time);
 
     const deduped = [];
@@ -529,9 +595,7 @@ class ChartInstance {
 
     // Auto-fit content to center newly loaded timeframe/candles
     if (shouldFitContent && this.chart) {
-      try {
-        this.chart.timeScale().fitContent();
-      } catch (e) {}
+      this.resetPriceScale();
     }
 
     // Update legend with latest candle values
@@ -1004,10 +1068,15 @@ class ChartInstance {
   }
 
   setSymbol(newSymbol) {
-    if (this.symbol === newSymbol) return;
-    this.symbol = newSymbol;
-    if (this.symbolEl) this.symbolEl.textContent = newSymbol;
+    if (!newSymbol) return;
+    const cleanSym = newSymbol.toUpperCase().trim();
+    this.symbol = cleanSym;
+    if (this.symbolEl) this.symbolEl.textContent = cleanSym;
+
+    // Immediately clear manual scaling and auto-center the new scrip's price level
+    this.resetPriceScale();
     this.loadData();
+
     if (this.drawingOverlay) {
       this.drawingOverlay.loadDrawings();
     }
@@ -1022,10 +1091,14 @@ class ChartInstance {
   }
 
   setInterval(newInterval) {
-    if (this.interval === newInterval) return;
-    this.interval = newInterval;
-    if (this.intervalEl) this.intervalEl.textContent = newInterval.toUpperCase();
+    if (!newInterval) return;
+    this.interval = newInterval.toLowerCase();
+    if (this.intervalEl) this.intervalEl.textContent = this.interval.toUpperCase();
+
+    // Immediately clear manual scaling and re-fit timeframe
+    this.resetPriceScale();
     this.loadData();
+
     window.multiChartGrid?.saveState();
     if (window.app && window.multiChartGrid?.activeChart === this) {
       window.app.updateHeaderForActiveChart(this);
@@ -1036,6 +1109,7 @@ class ChartInstance {
     if (this.chartType === newType) return;
     this.chartType = newType;
     this.createMainSeries();
+    this.resetPriceScale();
     this.renderData(true);
     window.multiChartGrid?.saveState();
   }

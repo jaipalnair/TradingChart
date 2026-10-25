@@ -90,7 +90,12 @@ window.IndicatorsEngine = {
       const time = candles[i].time;
       middle.push({ time, value: parseFloat(sma.toFixed(4)) });
       upper.push({ time, value: parseFloat((sma + (stdDev * stdDevMult)).toFixed(4)) });
-      lower.push({ time, value: parseFloat((sma - (stdDev * stdDevMult)).toFixed(4)) });
+      const lowerVal = sma - (stdDev * stdDevMult);
+      if (lowerVal > 0) {
+        lower.push({ time, value: parseFloat(lowerVal.toFixed(4)) });
+      } else {
+        lower.push({ time });
+      }
     }
 
     return { upper, middle, lower };
@@ -369,10 +374,18 @@ window.IndicatorsEngine = {
       const t = candles[i].time;
 
       if (direction[i] === 1) {
-        up.push({ time: t, value: stVal });
+        if (stVal > 0) {
+          up.push({ time: t, value: stVal });
+        } else {
+          up.push({ time: t });
+        }
         down.push({ time: t });
       } else {
-        down.push({ time: t, value: stVal });
+        if (stVal > 0) {
+          down.push({ time: t, value: stVal });
+        } else {
+          down.push({ time: t });
+        }
         up.push({ time: t });
       }
     }
