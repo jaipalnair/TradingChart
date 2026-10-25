@@ -1,1030 +1,4120 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>TraderView - Multi-Chart Trading Platform</title>
-  
-  <script>
-    window.__caught_errors = [];
-    window.onerror = function(msg, url, lineNo, colNo, error) {
-      window.__caught_errors.push({ msg: msg, url: url, line: lineNo, stack: error ? error.stack : '' });
-      console.error("PAGE ERROR:", msg, url, lineNo, error);
-    };
-  </script>
-
-  <!-- Local Tailwind CSS Engine -->
-  <script src="/static/tailwind.min.js"></script>
-  
-  <!-- TradingView Custom Theme & Layouts Stylesheet -->
-  <link rel="stylesheet" href="/static/css/style.css?v=2.24">
-  
-  <!-- Local Lucide Icons -->
-  <script src="/static/lucide.min.js"></script>
-  
-  <!-- TradingView's Official Lightweight Charts Engine (Local Bundle) -->
-  <script src="/static/lightweight-charts.standalone.production.js"></script>
-</head>
-<body class="flex flex-col h-screen w-screen overflow-hidden bg-[#131722] text-[#d1d4dc]">
-
-  <!-- Top Global Navigation & Toolbar -->
-  <header class="tv-header">
-    <!-- Left Section: Brand & Symbol & Timeframes -->
-    <div class="flex items-center space-x-1 shrink-0">
-      <!-- App Logo -->
-      <div class="flex items-center space-x-1.5 px-1 py-0.5 cursor-pointer select-none shrink-0">
-        <svg class="w-4 h-4 text-[#2962ff] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
-          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
-          <polyline points="16 7 22 7 22 13"></polyline>
-        </svg>
-        <div class="flex flex-col justify-center leading-tight">
-          <div class="flex items-center space-x-1 font-bold text-xs tracking-tight text-white">
-            <span class="font-extrabold text-[#2962ff]">Trader</span><span>View</span>
-            <span class="text-[8px] bg-[#2962ff] text-white px-1 py-0.2 rounded font-semibold ml-0.5">MULTI</span>
-          </div>
-          <span class="caption-embossed-yellow">For Traders, by Jaipal</span>
-        </div>
-      </div>
-
-      <div class="tv-divider"></div>
-
-      <!-- Active Symbol Search Button -->
-      <button id="btn-symbol-search" class="tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] text-xs font-bold text-white px-2 py-1 shrink-0" title="Search symbol or market">
-        <i data-lucide="search" class="w-3.5 h-3.5 text-[#787b86]"></i>
-        <span id="header-symbol-text">RELIANCE</span>
-        <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
-      </button>
-
-      <div class="tv-divider"></div>
-
-      <!-- Timeframe Selector: Favorite Pills + Dropdown List -->
-      <div class="flex items-center space-x-0.5 text-xs shrink-0" id="header-timeframe-group">
-        <div id="header-tf-favorites" class="flex items-center space-x-0.5 shrink-0"></div>
-        <button id="btn-timeframe-dropdown" class="timeframe-dropdown-btn select-none" title="Select Timeframe & Favorites">
-          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
-        </button>
-      </div>
-
-      <div class="tv-divider"></div>
-
-      <!-- Chart Type Dropdown Button -->
-      <button id="btn-global-chart-type" class="tv-icon-btn" title="Chart Style">
-        <i data-lucide="candlestick-chart" class="w-4 h-4"></i>
-      </button>
-
-      <!-- Indicators Modal Button -->
-      <button id="btn-global-indicators" class="tv-btn px-2 py-1 text-xs shrink-0" title="Technical Indicators">
-        <i data-lucide="activity" class="w-3.5 h-3.5 text-[#2962ff]"></i>
-        <span class="font-semibold text-xs">Indicators</span>
-      </button>
-    </div>
-
-    <!-- Right Section: Multi-Chart Layouts, Sync, Theme, Fullscreen -->
-    <div class="flex items-center space-x-1 relative">
-      <!-- Multi-Chart Layout Selector -->
-      <div class="relative">
-        <button id="btn-layout-picker" class="tv-btn border border-[#2a2e39] bg-[#1e222d] text-xs font-semibold" title="Select Multi-Chart Layout">
-          <i data-lucide="layout-grid" class="w-4 h-4 text-[#2962ff]"></i>
-          <span>Layout</span>
-          <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
-        </button>
-
-        <!-- Layout Dropdown Menu -->
-        <div id="layout-picker-dropdown" class="tv-dropdown hidden right-0 w-64 p-3 bg-[#1e222d] border border-[#2a2e39]">
-          <div class="text-[11px] font-semibold text-[#787b86] uppercase mb-2">Select Multi-Chart Layout</div>
-          <div class="grid grid-cols-4 gap-2">
-            <!-- 1 Chart -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="1" title="1 Single Chart">
-              <div class="w-8 h-6 bg-[#2a2e39] rounded-sm"></div>
-              <span class="text-[10px] mt-1 text-[#787b86]">1</span>
-            </button>
-            <!-- 2 Horizontal -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="2h" title="2 Charts Side-by-Side">
-              <div class="w-8 h-6 grid grid-cols-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">2H</span>
-            </button>
-            <!-- 2 Vertical -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="2v" title="2 Charts Stacked">
-              <div class="w-8 h-6 grid grid-rows-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">2V</span>
-            </button>
-            <!-- 3 Columns -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="3c" title="3 Columns">
-              <div class="w-8 h-6 grid grid-cols-3 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">3C</span>
-            </button>
-            <!-- 3 Left Large -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="3l" title="3 Charts (1 Left, 2 Right)">
-              <div class="w-8 h-6 grid grid-cols-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="grid grid-rows-2 gap-0.5">
-                  <div class="bg-[#2a2e39] rounded-sm"></div>
-                  <div class="bg-[#2a2e39] rounded-sm"></div>
-                </div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">3L</span>
-            </button>
-            <!-- 4 Grid (2x2) -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="4" title="4 Charts Grid (2x2)">
-              <div class="w-8 h-6 grid grid-cols-2 grid-rows-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">4 Grid</span>
-            </button>
-            <!-- 6 Grid -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="6" title="6 Charts (2x3)">
-              <div class="w-8 h-6 grid grid-cols-3 grid-rows-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">6 Grid</span>
-            </button>
-            <!-- 8 Grid -->
-            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="8" title="8 Charts (2x4)">
-              <div class="w-8 h-6 grid grid-cols-4 grid-rows-2 gap-0.5">
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-                <div class="bg-[#2a2e39] rounded-sm"></div>
-              </div>
-              <span class="text-[10px] mt-1 text-[#787b86]">8 Grid</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Synchronization Options Dropdown -->
-      <div class="relative">
-        <button id="btn-sync-options" class="tv-btn border border-[#2a2e39] bg-[#1e222d] text-xs font-semibold" title="Multi-Chart Synchronization">
-          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-[#089981]"></i>
-          <span>Sync</span>
-          <span id="sync-active-badge" class="bg-[#089981] text-white text-[10px] px-1 rounded">1</span>
-          <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
-        </button>
-
-        <!-- Sync Dropdown Menu -->
-        <div id="sync-options-dropdown" class="tv-dropdown hidden right-0 w-60 p-3 bg-[#1e222d] border border-[#2a2e39] text-xs space-y-2.5">
-          <div class="text-[11px] font-semibold text-[#787b86] uppercase mb-1">Synchronize Charts</div>
-          
-          <label class="flex items-center justify-between cursor-pointer py-1">
-            <span class="flex items-center space-x-2">
-              <i data-lucide="crosshair" class="w-3.5 h-3.5 text-[#2962ff]"></i>
-              <span class="text-[#d1d4dc]">Crosshair</span>
-            </span>
-            <input id="sync-crosshair-toggle" type="checkbox" checked class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
-          </label>
-
-          <label class="flex items-center justify-between cursor-pointer py-1">
-            <span class="flex items-center space-x-2">
-              <i data-lucide="tag" class="w-3.5 h-3.5 text-[#089981]"></i>
-              <span class="text-[#d1d4dc]">Symbol</span>
-            </span>
-            <input id="sync-symbol-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
-          </label>
-
-          <label class="flex items-center justify-between cursor-pointer py-1">
-            <span class="flex items-center space-x-2">
-              <i data-lucide="clock" class="w-3.5 h-3.5 text-[#ff9800]"></i>
-              <span class="text-[#d1d4dc]">Interval (Timeframe)</span>
-            </span>
-            <input id="sync-interval-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
-          </label>
-
-          <label class="flex items-center justify-between cursor-pointer py-1">
-            <span class="flex items-center space-x-2">
-              <i data-lucide="move" class="w-3.5 h-3.5 text-[#9c27b0]"></i>
-              <span class="text-[#d1d4dc]">Date Range & Scroll</span>
-            </span>
-            <input id="sync-time-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
-          </label>
-        </div>
-      </div>
-
-      <div class="tv-divider"></div>
-
-      <!-- Save Layout Button -->
-      <button id="btn-save-layout" class="tv-btn bg-[#2962ff] hover:bg-[#1e53e5] text-white text-xs font-semibold px-2 py-1 rounded shadow-sm flex items-center space-x-1 shrink-0" title="Save Layout & Preferences (Ctrl+S)">
-        <i data-lucide="save" class="w-3.5 h-3.5"></i>
-        <span id="save-layout-text">Save</span>
-      </button>
-
-      <!-- Market Status & Live IST Clock (Combined compact pill) -->
-      <div id="header-status-clock-group" class="hidden xl:flex items-center space-x-1 px-1.5 py-1 rounded border border-[#2a2e39] bg-[#1e222d] select-none shrink-0" title="NSE Indian Market (09:15 - 15:30 IST) & Live Time">
-        <div id="header-market-status" class="flex items-center space-x-1 cursor-help">
-          <span id="market-status-dot" class="w-1.5 h-1.5 rounded-full bg-[#f23645]"></span>
-          <span id="market-status-text" class="text-[#f23645] text-[11px] font-bold">Closed</span>
-        </div>
-        <span class="text-[#787b86] text-[10px]">·</span>
-        <div id="header-ist-clock" class="font-mono text-[11px] font-bold text-[#d1d4dc]">
-          <span id="ist-clock-text">--:--:-- IST</span>
-        </div>
-      </div>
-
-      <div class="tv-divider"></div>
-
-      <!-- Refresh All Charts -->
-      <button id="btn-refresh-all" class="tv-icon-btn hidden xl:flex" title="Reload & Refresh All Charts">
-        <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
-      </button>
-
-      <!-- Snapshot Screenshot -->
-      <button id="btn-take-snapshot" class="tv-icon-btn hidden 2xl:flex" title="Take Chart Screenshot (PNG)">
-        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
-      </button>
-
-            <!-- DhanHQ Live Connection Button -->
-      <button id="btn-dhan-modal" class="btn-dhan-embossed-red select-none shrink-0 transition cursor-pointer" title="DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)">
-        <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0"></span>
-        <span id="dhan-btn-label" class="inline text-[11px] font-bold tracking-wide">DhanHQ</span>
-      </button>
-
-      <!-- Theme Switcher (Dark / Light Mode Toggle) -->
-      <button id="btn-toggle-theme" class="theme-switch-btn flex items-center space-x-1 px-2 py-1 rounded text-xs font-semibold border border-[#2a2e39] bg-[#1e222d] hover:border-[#2962ff] transition shadow-sm select-none cursor-pointer shrink-0" title="Switch Theme (Dark / Light Mode)">
-        <span class="theme-toggle-icon flex items-center">
-          <i data-lucide="moon" class="w-3.5 h-3.5 text-amber-300"></i>
-        </span>
-        <span id="theme-toggle-label" class="hidden 2xl:inline text-[11px] font-semibold text-[#d1d4dc]">Dark</span>
-      </button>
-
-      <!-- Orders Management Button in Header -->
-      <button id="btn-top-orders" class="tv-btn bg-[#1e222d] border border-[#2a2e39] px-2.5 py-1 text-xs font-semibold shrink-0 hover:border-[#2962ff] hover:text-[#2962ff] transition flex items-center space-x-1.5 shadow-sm" title="View & Manage Orders">
-        <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-[#2962ff]"></i>
-        <span class="text-[11px] font-semibold">Orders</span>
-        <span id="orders-count-badge" class="hidden px-1.5 py-0.2 rounded-full text-[9px] bg-[#2962ff] text-white font-bold leading-tight">0</span>
-      </button>
-
-      <!-- Admin Panel Button (shown for Admins) -->
-      <button id="btn-top-admin" class="hidden tv-btn bg-[#1e222d] border border-[#7c3aed]/50 hover:border-[#7c3aed] text-[#c084fc] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm relative" title="Admin Control Center & Traffic Analytics">
-        <i data-lucide="shield" class="w-3.5 h-3.5 text-[#a855f7]"></i>
-        <span class="text-[11px] font-semibold">Admin</span>
-        <span id="header-admin-notification" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-extrabold animate-pulse font-mono shadow-sm">0</span>
-      </button>
-
-      <!-- User Profile / Auth Button -->
-      <div class="relative shrink-0" id="user-profile-wrapper">
-        <button id="btn-user-auth" class="tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm cursor-pointer" title="User Profile / Sign In">
-          <i data-lucide="user" class="w-3.5 h-3.5 text-[#2962ff]"></i>
-          <span id="header-username" class="text-[11px] font-semibold">Sign In</span>
-        </button>
-
-        <!-- User Dropdown Menu -->
-        <div id="user-profile-menu" class="hidden absolute right-0 top-full mt-1.5 w-48 bg-[#1e222d] border border-[#2a2e39] rounded-lg shadow-2xl py-1 z-50 divide-y divide-[#2a2e39]/60">
-          <div class="px-3 py-2 text-xs">
-            <div id="profile-menu-name" class="font-bold text-white">Guest</div>
-            <div id="profile-menu-role" class="text-[10px] text-[#787b86]">Not logged in</div>
-          </div>
-          <div class="py-1">
-            <button id="btn-save-profile-setup" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
-              <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-[#089981]"></i>
-              <span>Save Workspace</span>
-            </button>
-            <button id="btn-open-change-pwd" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
-              <i data-lucide="key-round" class="w-3.5 h-3.5 text-amber-400"></i>
-              <span>Change Password</span>
-            </button>
-          </div>
-          <div class="py-1">
-            <button id="btn-profile-logout" class="w-full text-left px-3 py-1.5 text-xs text-[#f23645] hover:bg-[#2a2e39] transition flex items-center space-x-2">
-              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
-              <span>Sign Out</span>
-            </button>
-          </div>
-        </div>
-      </div>
-
-      <!-- Fullscreen -->
-      <button id="btn-toggle-fullscreen" class="tv-icon-btn" title="Toggle Fullscreen">
-        <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
-      </button>
-    </div>
-  </header>
-
-  <!-- Main Work Area: Left Drawing Bar + Multi-Chart Grid + Right Sidebar -->
-  <div class="flex flex-1 overflow-hidden relative">
-    
-    <!-- Left Drawing Toolbar -->
-    <aside class="tv-left-toolbar">
-      <button class="tv-tool-btn active" data-tool="cursor" data-title="Crosshair Cursor">
-        <i data-lucide="plus" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="trendline" data-title="Trend Line">
-        <i data-lucide="trending-up" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="horizontal" data-title="Horizontal Line (Support/Resistance)">
-        <i data-lucide="minus" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="vertical" data-title="Vertical Line (Time Marker)">
-        <i data-lucide="split" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="rectangle" data-title="Order Block / Rectangle Box">
-        <i data-lucide="square" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="fibonacci" data-title="Fibonacci Retracement">
-        <i data-lucide="git-commit" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn" data-tool="measure" data-title="Measure Ruler (Delta & %)">
-        <i data-lucide="ruler" class="w-4 h-4"></i>
-      </button>
-      <div class="w-6 h-px bg-[#2a2e39] my-1"></div>
-      <button class="tv-tool-btn" data-tool="eraser" data-title="Eraser Mode">
-        <i data-lucide="eraser" class="w-4 h-4"></i>
-      </button>
-      <button class="tv-tool-btn hover:text-[#f23645]" data-tool="clear" data-title="Delete All Drawings">
-        <i data-lucide="trash-2" class="w-4 h-4"></i>
-      </button>
-    </aside>
-
-    <!-- Center Multi-Chart Grid Container -->
-    <main class="flex-1 h-full overflow-hidden relative" id="chart-viewport">
-      <div id="chart-grid" class="layout-4">
-        <!-- Dynamic Chart Tiles Injected Here by MultiChartGrid -->
-      </div>
-      <!-- Persistent Floating Sidebar Restore Tab (Visible when sidebar is collapsed) -->
-      <div id="sidebar-restore-tab" class="hidden" title="Click to Restore Watchlist Sidebar">
-        <i data-lucide="chevron-left" class="w-4 h-4"></i>
-        <span class="restore-tab-text">WATCHLIST</span>
-      </div>
-    </main>
-
-    <!-- Right Sidebar (Watchlist, Depth, Technicals, Alerts) -->
-    <aside id="watchlist-panel-container" class="tv-right-sidebar"></aside>
-  </div>
-
-  <!-- Bottom Dock: Paper Trading Terminal (Minimized by default, expandable on demand) -->
-  <footer id="paper-dock-container" class="tv-bottom-panel collapsed" style="height: 32px;"></footer>
-
-  <!-- ================= MODALS ================= -->
-
-  <!-- Symbol Search Modal -->
-  <div id="symbol-search-modal" class="tv-modal-backdrop hidden">
-    <div class="tv-modal">
-      <!-- Search Input Header -->
-      <div class="p-3 border-b border-[#2a2e39] flex items-center space-x-3 bg-[#1e222d]">
-        <i data-lucide="search" class="w-5 h-5 text-[#787b86]"></i>
-        <input id="symbol-search-input" type="text" placeholder="Search symbol or market (e.g. RELIANCE, TCS, INFY, NIFTY50, BTC, AAPL)..." class="w-full bg-transparent text-sm text-white focus:outline-none placeholder-[#787b86]">
-        <button id="btn-close-symbol-modal" class="text-[#787b86] hover:text-white p-1">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <!-- Categories Tabs -->
-      <div class="flex items-center space-x-1 px-3 py-2 bg-[#131722] border-b border-[#2a2e39] overflow-x-auto">
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#2962ff] bg-[rgba(41,98,255,0.12)] symbol-cat-btn" data-category="ALL">All</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Indian Stocks">🇮🇳 Indian (NSE)</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Crypto">Crypto</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Stocks">US Stocks</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Indices">Indices</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Commodities">Commodities</button>
-        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Forex">Forex</button>
-      </div>
-
-      <!-- Symbol Results List -->
-      <div id="symbol-results-list" class="max-h-80 overflow-y-auto divide-y divide-[rgba(42,46,57,0.3)] bg-[#1e222d]"></div>
-    </div>
-  </div>
-
-  <!-- Technical Indicators Modal -->
-  <div id="indicators-modal" class="tv-modal-backdrop hidden">
-    <div class="tv-modal tv-modal-wide max-w-2xl">
-      <div class="p-3 border-b border-[#2a2e39] flex items-center justify-between bg-[#1e222d]">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="activity" class="w-4 h-4 text-[#2962ff]"></i>
-          <span class="font-bold text-sm text-white">Indicators, Metrics & Strategies</span>
-        </div>
-        <button id="btn-close-indicators-modal" class="text-[#787b86] hover:text-white p-1">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <div id="indicators-options-list" class="p-3 space-y-2.5 max-h-[75vh] overflow-y-auto bg-[#1e222d]"></div>
-    </div>
-  </div>
-
-  <!-- DhanHQ API Connection Modal -->
-  <div id="dhan-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-2">
-          <span class="text-amber-400 text-lg">⚡</span>
-          <div>
-            <h3 class="text-sm font-bold text-white">Connect DhanHQ Account</h3>
-            <p class="text-[10px] text-[#787b86]">Official zero-delay live tick & intraday market data</p>
-          </div>
-        </div>
-        <button id="btn-close-dhan-modal" class="text-[#787b86] hover:text-white p-1 rounded transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <!-- Modal Body -->
-      <div class="p-4 space-y-3.5 text-xs">
-        <div id="dhan-status-box" class="p-2.5 rounded-lg border border-[#2a2e39] bg-[#131722] flex items-center justify-between">
-          <div class="flex items-center space-x-2">
-            <span id="dhan-modal-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
-            <span id="dhan-modal-status-text" class="font-semibold text-[#d1d4dc]">Status: Not Configured</span>
-          </div>
-          <label class="flex items-center space-x-1.5 cursor-pointer select-none">
-            <input type="checkbox" id="dhan-enable-toggle" class="form-checkbox h-3.5 w-3.5 rounded bg-[#1e222d] border-[#2a2e39] text-[#2962ff] focus:ring-0">
-            <span class="text-[11px] text-[#787b86]">Enable Live Feed</span>
-          </label>
-        </div>
-
-        <div class="text-[11px] text-[#787b86] bg-[#2a2e39]/30 p-2.5 rounded border border-[#2a2e39]/50 space-y-1">
-          <p class="font-semibold text-[#d1d4dc]">📌 How to get your credentials:</p>
-          <ol class="list-decimal list-inside space-y-0.5 text-[#9aa0a6]">
-            <li>Log into <a href="https://web.dhan.co" target="_blank" class="text-[#2962ff] underline font-semibold">web.dhan.co</a></li>
-            <li>Click <b>Profile</b> (top right) &rarr; <b>Access DhanHQ APIs</b></li>
-            <li>Copy your <b>Client ID</b> and generate a new <b>Access Token</b></li>
-          </ol>
-        </div>
-
-        <div class="space-y-1">
-          <label class="font-semibold text-[#d1d4dc] block">Dhan Client ID</label>
-          <input type="text" id="dhan-client-id-input" placeholder="e.g. 1000123456" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-
-        <div class="space-y-1">
-          <label class="font-semibold text-[#d1d4dc] block">Access Token</label>
-          <textarea id="dhan-access-token-input" rows="3" placeholder="Paste your 24h / 30-day Access Token here..." class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono break-all"></textarea>
-        </div>
-      </div>
-
-      <!-- Modal Footer -->
-      <div class="flex items-center justify-between px-4 py-3 border-t border-[#2a2e39] bg-[#181b24]">
-        <span id="dhan-save-msg" class="text-[11px] text-[#787b86]"></span>
-        <div class="flex items-center space-x-2">
-          <button id="btn-cancel-dhan-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">Cancel</button>
-          <button id="btn-save-dhan-config" class="px-3.5 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow-md">
-            <span>Test & Save</span>
-          </button>
-        </div>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- Orders History & Management Modal -->
-  <div id="orders-manager-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
-      
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-3">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="clipboard-list" class="w-5 h-5 text-[#2962ff]"></i>
-            <h3 class="font-bold text-base text-white tracking-wide">Orders & Positions</h3>
-          </div>
-          <div id="orders-dhan-status-pill" class="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs bg-[#2a2e39]/60 border border-[#2a2e39]">
-            <span class="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
-            <span class="text-[#089981] font-semibold">DhanHQ Live</span>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <button id="btn-orders-new" class="px-3 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow">
-            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
-            <span>Add Order</span>
-          </button>
-          <button id="btn-orders-refresh" class="px-2.5 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition flex items-center space-x-1" title="Refresh Orders">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-          </button>
-          <button id="btn-close-orders-modal" class="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Filter Subheader Bar -->
-      <div class="flex items-center justify-between px-5 py-2 border-b border-[#2a2e39] bg-[#1e222d]">
-        <div class="flex items-center space-x-1 text-xs">
-          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold bg-[#2962ff] text-white transition" data-filter="all">All Orders</button>
-          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="pending">Open / Pending</button>
-          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="traded">Executed / Traded</button>
-          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="cancelled">Cancelled / Rejected</button>
-        </div>
-        <div class="text-[11px] text-[#787b86]">
-          Real-time sync with DhanHQ orderbook
-        </div>
-      </div>
-
-      <!-- Orders Table Container -->
-      <div class="flex-1 overflow-auto p-0">
-        <table class="w-full text-left border-collapse">
-          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
-            <tr>
-              <th class="py-2.5 px-3">Time</th>
-              <th class="py-2.5 px-3">Symbol</th>
-              <th class="py-2.5 px-3">Side</th>
-              <th class="py-2.5 px-3">Type</th>
-              <th class="py-2.5 px-3">Product</th>
-              <th class="py-2.5 px-3">Filled / Qty</th>
-              <th class="py-2.5 px-3">Price</th>
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="orders-table-body" class="divide-y divide-[#2a2e39]/40">
-            <!-- Populated dynamically by OrdersManager -->
-          </tbody>
-        </table>
-      </div>
-    </div>
-  </div>
-
-  <!-- Place Order Modal (Direct Dhan / Paper Trade Ticket) -->
-  <div id="order-place-modal" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-md overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
-      
-      <!-- Ticket Header with BUY / SELL Tabs -->
-      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-1.5 p-1 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <button id="order-side-buy" class="px-4 py-1 rounded text-xs font-bold transition select-none cursor-pointer">BUY</button>
-          <button id="order-side-sell" class="px-4 py-1 rounded text-xs font-bold transition select-none cursor-pointer">SELL</button>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <span id="order-symbol-display" class="font-bold text-white font-mono text-sm">RELIANCE</span>
-          <span id="order-market-price-tag" class="text-xs text-[#089981] font-mono font-semibold">₹0.00</span>
-          <button id="btn-close-place-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Ticket Body -->
-      <div class="p-4 space-y-4">
-        <input type="hidden" id="order-symbol-input" value="RELIANCE">
-
-        <!-- Destination Routing: DhanHQ vs Paper Trading -->
-        <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <div class="flex items-center space-x-2">
-            <i data-lucide="zap" class="w-4 h-4 text-[#2962ff]"></i>
-            <div>
-              <div class="text-xs font-bold text-white">Route directly to DhanHQ</div>
-              <div class="text-[10px] text-[#787b86]">Live market execution via connected account</div>
-            </div>
-          </div>
-          <label class="relative inline-flex items-center cursor-pointer">
-            <input type="checkbox" id="order-route-dhan-toggle" class="sr-only peer" checked>
-            <div class="w-9 h-5 bg-[#2a2e39] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#089981]"></div>
-          </label>
-        </div>
-
-        <!-- Product Type (Intraday MIS vs CNC Delivery vs Margin) -->
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1.5">Product Type</label>
-          <div class="grid grid-cols-3 gap-1.5">
-            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
-              <input type="radio" name="product-type" value="INTRADAY" class="hidden" checked>
-              <span>Intraday (MIS)</span>
-            </label>
-            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
-              <input type="radio" name="product-type" value="CNC" class="hidden">
-              <span>Delivery (CNC)</span>
-            </label>
-            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
-              <input type="radio" name="product-type" value="MARGIN" class="hidden">
-              <span>Margin</span>
-            </label>
-          </div>
-        </div>
-
-        <!-- Order Type (MARKET vs LIMIT) -->
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1.5">Order Type</label>
-          <div class="grid grid-cols-2 gap-1.5">
-            <button type="button" class="order-type-btn py-1.5 rounded border border-[#2a2e39] bg-[#2962ff] text-white text-xs font-semibold transition" data-type="MARKET">Market</button>
-            <button type="button" class="order-type-btn py-1.5 rounded border border-[#2a2e39] bg-[#1e222d] text-[#787b86] text-xs font-semibold transition" data-type="LIMIT">Limit</button>
-          </div>
-        </div>
-
-        <!-- Quantity & Price Inputs -->
-        <div class="grid grid-cols-2 gap-3">
-          <div>
-            <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1">Quantity</label>
-            <div class="flex items-center border border-[#2a2e39] rounded bg-[#131722] overflow-hidden focus-within:border-[#2962ff]">
-              <button type="button" id="btn-qty-minus" class="px-2.5 py-1.5 text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">-</button>
-              <input type="number" id="order-qty-input" value="1" min="1" class="w-full text-center bg-transparent py-1.5 text-xs text-white focus:outline-none font-mono font-bold">
-              <button type="button" id="btn-qty-plus" class="px-2.5 py-1.5 text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">+</button>
-            </div>
-            <!-- Quick Qty Pills -->
-            <div class="flex items-center space-x-1 mt-1 text-[10px]">
-              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="1">+1</button>
-              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="5">+5</button>
-              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="10">+10</button>
-              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="50">+50</button>
-              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="100">+100</button>
-            </div>
-          </div>
-
-          <div id="order-price-wrapper" class="opacity-50 pointer-events-none transition">
-            <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1">Limit Price (₹)</label>
-            <input type="number" id="order-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
-            <div class="text-[10px] text-[#787b86] mt-1">Leave for market execution</div>
-          </div>
-        </div>
-
-        <!-- Estimated Margin Preview -->
-        <div class="flex items-center justify-between text-xs py-2 px-3 rounded bg-[#131722] border border-[#2a2e39]">
-          <span class="text-[#787b86]">Estimated Value / Margin:</span>
-          <span id="order-est-margin" class="font-mono font-bold text-white">₹0.00</span>
-        </div>
-
-        <div id="order-place-status-msg" class="text-center text-xs"></div>
-      </div>
-
-      <!-- Ticket Footer -->
-      <div class="px-4 py-3 border-t border-[#2a2e39] bg-[#181b24] flex items-center justify-between">
-        <button type="button" id="btn-cancel-place-modal" class="px-3 py-2 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
-        <button type="button" id="btn-submit-order" class="w-full ml-3 py-2.5 rounded text-xs font-bold text-white transition shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer">
-          <span>Submit Order</span>
-        </button>
-      </div>
-    </div>
-  </div>
-
-  <!-- Modify Order Modal -->
-  <div id="order-modify-modal" class="hidden fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
-        <h4 class="font-bold text-white flex items-center space-x-1.5">
-          <i data-lucide="edit-3" class="w-4 h-4 text-[#2962ff]"></i>
-          <span>Modify Order</span>
-        </h4>
-        <button id="btn-close-modify-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <div class="p-4 space-y-3">
-        <div class="flex items-center justify-between text-xs border-b border-[#2a2e39] pb-2 font-mono">
-          <span class="text-[#787b86]">Order ID: <b id="modify-order-id" class="text-white"></b></span>
-          <span class="text-[#787b86]">Symbol: <b id="modify-order-symbol" class="text-white"></b> (<span id="modify-order-side" class="font-bold"></span>)</span>
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Quantity</label>
-          <input type="number" id="modify-qty-input" min="1" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Price (₹)</label>
-          <input type="number" id="modify-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Trigger Price (Optional)</label>
-          <input type="number" id="modify-trigger-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div id="modify-status-msg" class="text-center text-xs"></div>
-      </div>
-      <div class="px-4 py-3 border-t border-[#2a2e39] bg-[#181b24] flex items-center justify-end space-x-2">
-        <button id="btn-cancel-modify-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
-        <button id="btn-submit-modify" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">Update Order</button>
-      </div>
-    </div>
-  </div>
-
-
-  <!-- User Authentication Modal (Sign In / Register) -->
-  <div id="auth-modal" class="hidden fixed inset-0 z-[10002] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
-      
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="user-check" class="w-5 h-5 text-[#2962ff]"></i>
-          <h3 class="font-bold text-base text-white tracking-wide">Trader Account</h3>
-        </div>
-        <!-- Non-dismissible wall: no close button until authenticated -->
-      </div>
-
-      <!-- Auth Tabs -->
-      <div class="flex border-b border-[#2a2e39] bg-[#1e222d] text-xs">
-        <button id="tab-auth-login" class="flex-1 py-2.5 font-bold text-center border-b-2 border-[#2962ff] text-white transition">Sign In</button>
-        <button id="tab-auth-register" class="flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-[#787b86] hover:text-white transition">Create Account</button>
-      </div>
-
-      <!-- Sign In Form -->
-      <form id="form-auth-login" class="p-5 space-y-3.5">
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
-          <input type="text" id="login-username-input" required placeholder="e.g. admin or your name" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
-          <input type="password" id="login-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <div class="flex items-center justify-between mb-1">
-            <label class="block text-[11px] font-semibold text-[#787b86]">Authorization Code</label>
-            <span class="text-[10px] text-amber-400 font-mono">(from administrator)</span>
-          </div>
-          <input type="text" id="login-authcode-input" maxlength="10" placeholder="e.g. K9X2B7M4Q1" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white uppercase tracking-wider font-mono placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]">
-          <div class="text-[10px] text-[#787b86] mt-1 leading-tight">Admin leave blank; registered traders enter the 10-character code provided by admin.</div>
-        </div>
-        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow-lg mt-2 cursor-pointer">
-          Sign In
-        </button>
-
-      </form>
-
-      <!-- Register Form -->
-      <form id="form-auth-register" class="hidden p-5 space-y-3.5">
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Choose Username</label>
-          <input type="text" id="register-username-input" required placeholder="e.g. rohit" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email Address</label>
-          <input type="email" id="register-email-input" required placeholder="name@example.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
-          <input type="password" id="register-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow-lg mt-2 cursor-pointer">
-          Submit for Approval
-        </button>
-        <div class="text-[10px] text-[#787b86] text-center pt-1 leading-normal">
-          Your request will be submitted to the administrator for approval. The admin will provide your 10-character authorization code.
-        </div>
-      </form>
-
-      <div id="auth-error-msg" class="px-5 pb-2 text-center text-xs"></div>
-      
-
-    </div>
-  </div>
-
-  <!-- Admin Control Center & Traffic Analytics Modal -->
-  <div id="admin-panel-modal" class="hidden fixed inset-0 z-[10003] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
-      
-      <!-- Modal Header -->
-      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-3">
-          <div class="p-1.5 rounded-lg bg-[#7c3aed]/20 border border-[#7c3aed]/40 text-[#c084fc]">
-            <i data-lucide="shield" class="w-5 h-5"></i>
-          </div>
-          <div>
-            <h3 class="font-bold text-base text-white tracking-wide">Admin Control Center</h3>
-            <p class="text-[11px] text-[#787b86]">User Management & Real-Time Traffic Analytics</p>
-          </div>
-        </div>
-
-        <div class="flex items-center space-x-2">
-          <button id="btn-admin-add-user" class="px-3 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition flex items-center space-x-1.5 shadow">
-            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
-            <span>Add User</span>
-          </button>
-          <button id="btn-admin-refresh" class="px-2.5 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition flex items-center space-x-1" title="Refresh Admin Metrics">
-            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
-          </button>
-          <button id="btn-close-admin-modal" class="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">
-            <i data-lucide="x" class="w-4 h-4"></i>
-          </button>
-        </div>
-      </div>
-
-      <!-- Notification Banner: Awaiting New User Requests -->
-      <div id="admin-pending-alert-banner" class="hidden px-4 py-2.5 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="bell" class="w-4 h-4 text-amber-400 animate-bounce"></i>
-          <span class="font-bold tracking-wide">Awaiting New User Request:</span>
-          <span id="admin-pending-alert-text">User registration request(s) waiting for your authorization.</span>
-        </div>
-        <button id="btn-banner-go-approvals" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] transition shadow flex items-center space-x-1 cursor-pointer">
-          <span>Review & Approve</span>
-          <i data-lucide="arrow-right" class="w-3 h-3"></i>
-        </button>
-      </div>
-
-      <!-- KPI Summary Cards -->
-      <div class="grid grid-cols-4 gap-3 p-4 bg-[#181b24]/50 border-b border-[#2a2e39]">
-        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Registered Users</div>
-          <div id="admin-kpi-total-users" class="text-xl font-bold text-white font-mono mt-1">0</div>
-        </div>
-        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Users (Today)</div>
-          <div id="admin-kpi-active-today" class="text-xl font-bold text-[#089981] font-mono mt-1">0</div>
-        </div>
-        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Sessions</div>
-          <div id="admin-kpi-active-sessions" class="text-xl font-bold text-[#c084fc] font-mono mt-1">0</div>
-        </div>
-        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
-          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Traffic Hits</div>
-          <div id="admin-kpi-total-requests" class="text-xl font-bold text-[#2962ff] font-mono mt-1">0</div>
-        </div>
-      </div>
-
-      <!-- Navigation Tabs -->
-      <div class="flex items-center space-x-1 px-4 py-2 border-b border-[#2a2e39] bg-[#1e222d] text-xs overflow-x-auto">
-        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-[#7c3aed] text-white bg-[#7c3aed]/20 transition flex items-center space-x-1.5" data-admin-tab="users">
-          <i data-lucide="users" class="w-3.5 h-3.5"></i>
-          <span>User Directory</span>
-        </button>
-        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="approvals">
-          <i data-lucide="user-check" class="w-3.5 h-3.5 text-amber-400"></i>
-          <span>User Approvals</span>
-          <span id="admin-pending-count-badge" class="hidden bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">0</span>
-        </button>
-        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="activity">
-          <i data-lucide="activity" class="w-3.5 h-3.5"></i>
-          <span>Traffic & Live Activity</span>
-        </button>
-        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="endpoints">
-          <i data-lucide="server" class="w-3.5 h-3.5"></i>
-          <span>Top Endpoints</span>
-        </button>
-
-      </div>
-
-      <!-- Tab 1: User Accounts Table -->
-      <div id="admin-tab-users-content" class="flex-1 overflow-auto p-0">
-        <table class="w-full text-left border-collapse">
-          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
-            <tr>
-              <th class="py-2.5 px-3">ID</th>
-              <th class="py-2.5 px-3">Username</th>
-              <th class="py-2.5 px-3">Email</th>
-              <th class="py-2.5 px-3">Role</th>
-              <th class="py-2.5 px-3">Auth Code</th>
-              <th class="py-2.5 px-3">Registered</th>
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3 text-right">Actions</th>
-            </tr>
-          </thead>
-          <tbody id="admin-users-table-body" class="divide-y divide-[#2a2e39]/40">
-            <!-- Dynamic Users -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Tab 2: Activity Table -->
-      <div id="admin-tab-activity-content" class="hidden flex-1 overflow-auto p-0">
-        <table class="w-full text-left border-collapse">
-          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
-            <tr>
-              <th class="py-2.5 px-3">Time</th>
-              <th class="py-2.5 px-3">User</th>
-              <th class="py-2.5 px-3">Request Endpoint</th>
-              <th class="py-2.5 px-3">Client IP</th>
-              <th class="py-2.5 px-3">HTTP Status</th>
-            </tr>
-          </thead>
-          <tbody id="admin-activity-table-body" class="divide-y divide-[#2a2e39]/40">
-            <!-- Dynamic Traffic Logs -->
-          </tbody>
-        </table>
-      </div>
-
-      <!-- Tab 3: Endpoints Breakdown -->
-      <div id="admin-tab-endpoints-content" class="hidden flex-1 overflow-auto p-4 space-y-2">
-        <div class="text-xs text-[#787b86] mb-2 font-semibold uppercase tracking-wider">Most Requested Platform Endpoints</div>
-        <div id="admin-endpoints-list" class="space-y-2">
-          <!-- Dynamic Endpoints -->
-        </div>
-      </div>
-
-      <!-- Tab 4: User Approvals -->
-      <div id="admin-tab-approvals-content" class="hidden flex-1 overflow-auto p-0">
-        <div class="p-3 bg-[#181b24] border-b border-[#2a2e39] flex items-center justify-between text-xs">
-          <div class="flex items-center space-x-2 text-[#d1d4dc]">
-            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
-            <span>Pending Registration Requests awaiting Admin Authorization</span>
-          </div>
-          <div class="text-[11px] text-amber-300 font-medium">Click Approve to generate a 10-character authorization code to give to the user.</div>
-        </div>
-        <table class="w-full text-left border-collapse">
-          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
-            <tr>
-              <th class="py-2.5 px-3">ID</th>
-              <th class="py-2.5 px-3">Username</th>
-              <th class="py-2.5 px-3">Email</th>
-              <th class="py-2.5 px-3">Requested At</th>
-              <th class="py-2.5 px-3">Status</th>
-              <th class="py-2.5 px-3 text-right">Approval Actions</th>
-            </tr>
-          </thead>
-          <tbody id="admin-pending-table-body" class="divide-y divide-[#2a2e39]/40">
-            <!-- Dynamic Pending Users -->
-          </tbody>
-        </table>
-        <div id="admin-pending-empty-msg" class="hidden p-8 text-center text-[#787b86] text-xs">
-          <i data-lucide="check-circle" class="w-8 h-8 text-[#089981] mx-auto mb-2 opacity-60"></i>
-          <div>No pending user requests. All accounts are up-to-date and authorized!</div>
-        </div>
-      </div>
-
-      </div>
-  </div>
-
-  <!-- Admin: Create User Modal -->
-  <div id="admin-create-user-modal" class="hidden fixed inset-0 z-[10004] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm">
-      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
-        <h4 class="font-bold text-white flex items-center space-x-1.5">
-          <i data-lucide="user-plus" class="w-4 h-4 text-[#7c3aed]"></i>
-          <span>Add New User</span>
-        </h4>
-        <button id="btn-close-create-user-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-
-      <form id="form-admin-create-user" class="p-4 space-y-3">
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
-          <input type="text" id="new-user-username-input" required placeholder="e.g. rahul" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
-          <input type="password" id="new-user-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
-        </div>
-        <div class="text-[11px] text-[#787b86] bg-[#131722] p-2.5 rounded border border-[#2a2e39]">
-          A 10-character authorization code will be generated upon creation for you to share manually.
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Role</label>
-          <select id="new-user-role-select" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#7c3aed]">
-            <option value="user">User (Standard Access)</option>
-            <option value="admin">Administrator (Full Access)</option>
-          </select>
-        </div>
-        <div id="admin-create-user-status-msg" class="text-center text-xs"></div>
-        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
-          <button type="button" id="btn-cancel-create-user" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
-          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition shadow">Create User</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  
-  <!-- Change Password Modal -->
-  <div id="change-password-modal" class="hidden fixed inset-0 z-[10005] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
-    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
-      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
-        <div class="flex items-center space-x-2">
-          <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
-          <h4 class="font-bold text-white">Change Account Password</h4>
-        </div>
-        <button id="btn-close-change-pwd-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
-      </div>
-      <form id="form-change-password" class="p-5 space-y-3.5">
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Current Password</label>
-          <input type="password" id="change-current-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">New Password</label>
-          <input type="password" id="change-new-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div>
-          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Confirm New Password</label>
-          <input type="password" id="change-confirm-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
-        </div>
-        <div id="change-pwd-status-msg" class="text-center text-xs"></div>
-        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
-          <button type="button" id="btn-cancel-change-pwd" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
-          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">Update Password</button>
-        </div>
-      </form>
-    </div>
-  </div>
-
-  <!-- Application Logic Scripts -->
-  <script src="/static/js/indicators.js?v=2.24"></script>
-  <script src="/static/js/drawings.js?v=2.24"></script>
-  <script src="/static/js/data-feed.js?v=2.24"></script>
-  <script src="/static/js/chart-instance.js?v=2.24"></script>
-  <script src="/static/js/multi-chart-grid.js?v=2.24"></script>
-  <script src="/static/js/watchlist.js?v=2.24"></script>
-  <script src="/static/js/paper-trading.js?v=2.24"></script>
-  <script src="/static/js/orders-manager.js?v=2.24"></script>
-  <script src="/static/js/auth-manager.js?v=2.24"></script>
-  <script src="/static/js/app.js?v=2.24"></script>
-</body>
-</html>
+<!DOCTYPE html>
+
+
+
+<html lang="en">
+
+
+
+<head>
+
+
+
+  <meta charset="UTF-8">
+
+
+
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+
+
+  <title>TraderView - Multi-Chart Trading Platform</title>
+
+
+
+  
+
+
+
+  <script>
+
+
+
+    window.__caught_errors = [];
+
+
+
+    window.onerror = function(msg, url, lineNo, colNo, error) {
+
+
+
+      window.__caught_errors.push({ msg: msg, url: url, line: lineNo, stack: error ? error.stack : '' });
+
+
+
+      console.error("PAGE ERROR:", msg, url, lineNo, error);
+
+
+
+    };
+
+
+
+  </script>
+
+
+
+
+
+
+
+  <!-- Local Tailwind CSS Engine -->
+
+
+
+  <script src="/static/tailwind.min.js"></script>
+
+
+
+  
+
+
+
+  <!-- TradingView Custom Theme & Layouts Stylesheet -->
+
+
+
+  <link rel="stylesheet" href="/static/css/style.css?v=2.25">
+
+
+
+  
+
+
+
+  <!-- Local Lucide Icons -->
+
+
+
+  <script src="/static/lucide.min.js"></script>
+
+
+
+  
+
+
+
+  <!-- TradingView's Official Lightweight Charts Engine (Local Bundle) -->
+
+
+
+  <script src="/static/lightweight-charts.standalone.production.js"></script>
+
+
+
+</head>
+
+
+
+<body class="flex flex-col h-screen w-screen overflow-hidden bg-[#131722] text-[#d1d4dc]">
+
+
+
+
+
+
+
+  <!-- Top Global Navigation & Toolbar -->
+
+
+
+  <header class="tv-header">
+
+
+
+    <!-- Left Section: Brand & Symbol & Timeframes -->
+
+
+
+    <div class="flex items-center space-x-1 shrink-0">
+
+
+
+      <!-- App Logo -->
+
+
+
+      <div class="flex items-center space-x-1.5 px-1 py-0.5 cursor-pointer select-none shrink-0">
+
+
+
+        <svg class="w-4 h-4 text-[#2962ff] shrink-0" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+
+
+
+          <polyline points="22 7 13.5 15.5 8.5 10.5 2 17"></polyline>
+
+
+
+          <polyline points="16 7 22 7 22 13"></polyline>
+
+
+
+        </svg>
+
+
+
+        <div class="flex flex-col justify-center leading-tight">
+
+
+
+          <div class="flex items-center space-x-1 font-bold text-xs tracking-tight text-white">
+
+
+
+            <span class="font-extrabold text-[#2962ff]">Trader</span><span>View</span>
+
+
+
+            <span class="text-[8px] bg-[#2962ff] text-white px-1 py-0.2 rounded font-semibold ml-0.5">MULTI</span>
+
+
+
+          </div>
+
+
+
+          <span class="caption-embossed-yellow">For Traders, by Jaipal</span>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <div class="tv-divider"></div>
+
+
+
+
+
+
+
+      <!-- Active Symbol Search Button -->
+
+
+
+      <button id="btn-symbol-search" class="tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] text-xs font-bold text-white px-2 py-1 shrink-0" title="Search symbol or market">
+
+
+
+        <i data-lucide="search" class="w-3.5 h-3.5 text-[#787b86]"></i>
+
+
+
+        <span id="header-symbol-text">RELIANCE</span>
+
+
+
+        <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <div class="tv-divider"></div>
+
+
+
+
+
+
+
+      <!-- Timeframe Selector: Favorite Pills + Dropdown List -->
+
+
+
+      <div class="flex items-center space-x-0.5 text-xs shrink-0" id="header-timeframe-group">
+
+
+
+        <div id="header-tf-favorites" class="flex items-center space-x-0.5 shrink-0"></div>
+
+
+
+        <button id="btn-timeframe-dropdown" class="timeframe-dropdown-btn select-none" title="Select Timeframe & Favorites">
+
+
+
+          <i data-lucide="chevron-down" class="w-3.5 h-3.5"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <div class="tv-divider"></div>
+
+
+
+
+
+
+
+      <!-- Chart Type Dropdown Button -->
+
+
+
+      <button id="btn-global-chart-type" class="tv-icon-btn" title="Chart Style">
+
+
+
+        <i data-lucide="candlestick-chart" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Indicators Modal Button -->
+
+
+
+      <button id="btn-global-indicators" class="tv-btn px-2 py-1 text-xs shrink-0" title="Technical Indicators">
+
+
+
+        <i data-lucide="activity" class="w-3.5 h-3.5 text-[#2962ff]"></i>
+
+
+
+        <span class="font-semibold text-xs">Indicators</span>
+
+
+
+      </button>
+
+
+
+    </div>
+
+
+
+
+
+
+
+    <!-- Right Section: Multi-Chart Layouts, Sync, Theme, Fullscreen -->
+
+
+
+    <div class="flex items-center space-x-1 relative">
+
+
+
+      <!-- Multi-Chart Layout Selector -->
+
+
+
+      <div class="relative">
+
+
+
+        <button id="btn-layout-picker" class="tv-btn border border-[#2a2e39] bg-[#1e222d] text-xs font-semibold" title="Select Multi-Chart Layout">
+
+
+
+          <i data-lucide="layout-grid" class="w-4 h-4 text-[#2962ff]"></i>
+
+
+
+          <span>Layout</span>
+
+
+
+          <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
+
+
+
+        </button>
+
+
+
+
+
+
+
+        <!-- Layout Dropdown Menu -->
+
+
+
+        <div id="layout-picker-dropdown" class="tv-dropdown hidden right-0 w-64 p-3 bg-[#1e222d] border border-[#2a2e39]">
+
+
+
+          <div class="text-[11px] font-semibold text-[#787b86] uppercase mb-2">Select Multi-Chart Layout</div>
+
+
+
+          <div class="grid grid-cols-4 gap-2">
+
+
+
+            <!-- 1 Chart -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="1" title="1 Single Chart">
+
+
+
+              <div class="w-8 h-6 bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">1</span>
+
+
+
+            </button>
+
+
+
+            <!-- 2 Horizontal -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="2h" title="2 Charts Side-by-Side">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">2H</span>
+
+
+
+            </button>
+
+
+
+            <!-- 2 Vertical -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="2v" title="2 Charts Stacked">
+
+
+
+              <div class="w-8 h-6 grid grid-rows-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">2V</span>
+
+
+
+            </button>
+
+
+
+            <!-- 3 Columns -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="3c" title="3 Columns">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-3 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">3C</span>
+
+
+
+            </button>
+
+
+
+            <!-- 3 Left Large -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="3l" title="3 Charts (1 Left, 2 Right)">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="grid grid-rows-2 gap-0.5">
+
+
+
+                  <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                  <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                </div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">3L</span>
+
+
+
+            </button>
+
+
+
+            <!-- 4 Grid (2x2) -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="4" title="4 Charts Grid (2x2)">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-2 grid-rows-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">4 Grid</span>
+
+
+
+            </button>
+
+
+
+            <!-- 6 Grid -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="6" title="6 Charts (2x3)">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-3 grid-rows-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">6 Grid</span>
+
+
+
+            </button>
+
+
+
+            <!-- 8 Grid -->
+
+
+
+            <button class="layout-opt-btn flex flex-col items-center justify-center p-2 rounded border border-[#2a2e39] hover:border-[#2962ff] bg-[#131722]" data-layout="8" title="8 Charts (2x4)">
+
+
+
+              <div class="w-8 h-6 grid grid-cols-4 grid-rows-2 gap-0.5">
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+                <div class="bg-[#2a2e39] rounded-sm"></div>
+
+
+
+              </div>
+
+
+
+              <span class="text-[10px] mt-1 text-[#787b86]">8 Grid</span>
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Synchronization Options Dropdown -->
+
+
+
+      <div class="relative">
+
+
+
+        <button id="btn-sync-options" class="tv-btn border border-[#2a2e39] bg-[#1e222d] text-xs font-semibold" title="Multi-Chart Synchronization">
+
+
+
+          <i data-lucide="refresh-cw" class="w-3.5 h-3.5 text-[#089981]"></i>
+
+
+
+          <span>Sync</span>
+
+
+
+          <span id="sync-active-badge" class="bg-[#089981] text-white text-[10px] px-1 rounded">1</span>
+
+
+
+          <i data-lucide="chevron-down" class="w-3 h-3 text-[#787b86]"></i>
+
+
+
+        </button>
+
+
+
+
+
+
+
+        <!-- Sync Dropdown Menu -->
+
+
+
+        <div id="sync-options-dropdown" class="tv-dropdown hidden right-0 w-60 p-3 bg-[#1e222d] border border-[#2a2e39] text-xs space-y-2.5">
+
+
+
+          <div class="text-[11px] font-semibold text-[#787b86] uppercase mb-1">Synchronize Charts</div>
+
+
+
+          
+
+
+
+          <label class="flex items-center justify-between cursor-pointer py-1">
+
+
+
+            <span class="flex items-center space-x-2">
+
+
+
+              <i data-lucide="crosshair" class="w-3.5 h-3.5 text-[#2962ff]"></i>
+
+
+
+              <span class="text-[#d1d4dc]">Crosshair</span>
+
+
+
+            </span>
+
+
+
+            <input id="sync-crosshair-toggle" type="checkbox" checked class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
+
+
+
+          </label>
+
+
+
+
+
+
+
+          <label class="flex items-center justify-between cursor-pointer py-1">
+
+
+
+            <span class="flex items-center space-x-2">
+
+
+
+              <i data-lucide="tag" class="w-3.5 h-3.5 text-[#089981]"></i>
+
+
+
+              <span class="text-[#d1d4dc]">Symbol</span>
+
+
+
+            </span>
+
+
+
+            <input id="sync-symbol-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
+
+
+
+          </label>
+
+
+
+
+
+
+
+          <label class="flex items-center justify-between cursor-pointer py-1">
+
+
+
+            <span class="flex items-center space-x-2">
+
+
+
+              <i data-lucide="clock" class="w-3.5 h-3.5 text-[#ff9800]"></i>
+
+
+
+              <span class="text-[#d1d4dc]">Interval (Timeframe)</span>
+
+
+
+            </span>
+
+
+
+            <input id="sync-interval-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
+
+
+
+          </label>
+
+
+
+
+
+
+
+          <label class="flex items-center justify-between cursor-pointer py-1">
+
+
+
+            <span class="flex items-center space-x-2">
+
+
+
+              <i data-lucide="move" class="w-3.5 h-3.5 text-[#9c27b0]"></i>
+
+
+
+              <span class="text-[#d1d4dc]">Date Range & Scroll</span>
+
+
+
+            </span>
+
+
+
+            <input id="sync-time-toggle" type="checkbox" class="w-4 h-4 rounded text-[#2962ff] bg-[#131722] border-[#2a2e39]">
+
+
+
+          </label>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <div class="tv-divider"></div>
+
+
+
+
+
+
+
+      <!-- Save Layout Button -->
+
+
+
+      <button id="btn-save-layout" class="tv-btn bg-[#2962ff] hover:bg-[#1e53e5] text-white text-xs font-semibold px-2 py-1 rounded shadow-sm flex items-center space-x-1 shrink-0" title="Save Layout & Preferences (Ctrl+S)">
+
+
+
+        <i data-lucide="save" class="w-3.5 h-3.5"></i>
+
+
+
+        <span id="save-layout-text">Save</span>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Market Status & Live IST Clock (Combined compact pill) -->
+
+
+
+      <div id="header-status-clock-group" class="hidden xl:flex items-center space-x-1 px-1.5 py-1 rounded border border-[#2a2e39] bg-[#1e222d] select-none shrink-0" title="NSE Indian Market (09:15 - 15:30 IST) & Live Time">
+
+
+
+        <div id="header-market-status" class="flex items-center space-x-1 cursor-help">
+
+
+
+          <span id="market-status-dot" class="w-1.5 h-1.5 rounded-full bg-[#f23645]"></span>
+
+
+
+          <span id="market-status-text" class="text-[#f23645] text-[11px] font-bold">Closed</span>
+
+
+
+        </div>
+
+
+
+        <span class="text-[#787b86] text-[10px]">·</span>
+
+
+
+        <div id="header-ist-clock" class="font-mono text-[11px] font-bold text-[#d1d4dc]">
+
+
+
+          <span id="ist-clock-text">--:--:-- IST</span>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <div class="tv-divider"></div>
+
+
+
+
+
+
+
+      <!-- Refresh All Charts -->
+
+
+
+      <button id="btn-refresh-all" class="tv-icon-btn hidden xl:flex" title="Reload & Refresh All Charts">
+
+
+
+        <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Snapshot Screenshot -->
+
+
+
+      <button id="btn-take-snapshot" class="tv-icon-btn hidden 2xl:flex" title="Take Chart Screenshot (PNG)">
+
+
+
+        <i data-lucide="camera" class="w-3.5 h-3.5"></i>
+
+
+
+      </button>
+
+
+
+
+
+
+
+            <!-- DhanHQ Live Connection Button -->
+
+
+
+      <button id="btn-dhan-modal" class="btn-dhan-embossed-red select-none shrink-0 transition cursor-pointer" title="DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)">
+
+
+
+        <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0"></span>
+
+
+
+        <span id="dhan-btn-label" class="inline text-[11px] font-bold tracking-wide">DhanHQ</span>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Theme Switcher (Dark / Light Mode Toggle) -->
+
+
+
+      <button id="btn-toggle-theme" class="theme-switch-btn flex items-center space-x-1 px-2 py-1 rounded text-xs font-semibold border border-[#2a2e39] bg-[#1e222d] hover:border-[#2962ff] transition shadow-sm select-none cursor-pointer shrink-0" title="Switch Theme (Dark / Light Mode)">
+
+
+
+        <span class="theme-toggle-icon flex items-center">
+
+
+
+          <i data-lucide="moon" class="w-3.5 h-3.5 text-amber-300"></i>
+
+
+
+        </span>
+
+
+
+        <span id="theme-toggle-label" class="hidden 2xl:inline text-[11px] font-semibold text-[#d1d4dc]">Dark</span>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Orders Management Button in Header -->
+
+
+
+      <button id="btn-top-orders" class="tv-btn bg-[#1e222d] border border-[#2a2e39] px-2.5 py-1 text-xs font-semibold shrink-0 hover:border-[#2962ff] hover:text-[#2962ff] transition flex items-center space-x-1.5 shadow-sm" title="View & Manage Orders">
+
+
+
+        <i data-lucide="clipboard-list" class="w-3.5 h-3.5 text-[#2962ff]"></i>
+
+
+
+        <span class="text-[11px] font-semibold">Orders</span>
+
+
+
+        <span id="orders-count-badge" class="hidden px-1.5 py-0.2 rounded-full text-[9px] bg-[#2962ff] text-white font-bold leading-tight">0</span>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- Admin Panel Button (shown for Admins) -->
+
+
+
+      <button id="btn-top-admin" class="hidden tv-btn bg-[#1e222d] border border-[#7c3aed]/50 hover:border-[#7c3aed] text-[#c084fc] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm relative" title="Admin Control Center & Traffic Analytics">
+
+
+
+        <i data-lucide="shield" class="w-3.5 h-3.5 text-[#a855f7]"></i>
+
+
+
+        <span class="text-[11px] font-semibold">Admin</span>
+
+
+
+        <span id="header-admin-notification" class="hidden ml-1 px-1.5 py-0.2 rounded-full bg-amber-500 text-black text-[10px] font-extrabold animate-pulse font-mono shadow-sm">0</span>
+
+
+
+      </button>
+
+
+
+
+
+
+
+      <!-- User Profile / Auth Button -->
+
+
+
+      <div class="relative shrink-0" id="user-profile-wrapper">
+
+
+
+        <button id="btn-user-auth" class="tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm cursor-pointer" title="User Profile / Sign In">
+
+
+
+          <i data-lucide="user" class="w-3.5 h-3.5 text-[#2962ff]"></i>
+
+
+
+          <span id="header-username" class="text-[11px] font-semibold">Sign In</span>
+
+
+
+        </button>
+
+
+
+
+
+
+
+        <!-- User Dropdown Menu -->
+
+
+
+        <div id="user-profile-menu" class="hidden absolute right-0 top-full mt-1.5 w-48 bg-[#1e222d] border border-[#2a2e39] rounded-lg shadow-2xl py-1 z-50 divide-y divide-[#2a2e39]/60">
+
+
+
+          <div class="px-3 py-2 text-xs">
+
+
+
+            <div id="profile-menu-name" class="font-bold text-white">Guest</div>
+
+
+
+            <div id="profile-menu-role" class="text-[10px] text-[#787b86]">Not logged in</div>
+
+
+
+          </div>
+
+
+
+          <div class="py-1">
+
+
+
+            <button id="btn-save-profile-setup" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
+
+
+
+              <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-[#089981]"></i>
+
+
+
+              <span>Save Workspace</span>
+
+
+
+            </button>
+
+
+
+            <button id="btn-open-change-pwd" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
+
+
+
+              <i data-lucide="key-round" class="w-3.5 h-3.5 text-amber-400"></i>
+
+
+
+              <span>Change Password</span>
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+          <div class="py-1">
+
+
+
+            <button id="btn-profile-logout" class="w-full text-left px-3 py-1.5 text-xs text-[#f23645] hover:bg-[#2a2e39] transition flex items-center space-x-2">
+
+
+
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+
+
+
+              <span>Sign Out</span>
+
+
+
+            </button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Fullscreen -->
+
+
+
+      <button id="btn-toggle-fullscreen" class="tv-icon-btn" title="Toggle Fullscreen">
+
+
+
+        <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
+
+
+
+      </button>
+
+
+
+    </div>
+
+
+
+  </header>
+
+
+
+
+
+
+
+  <!-- Main Work Area: Left Drawing Bar + Multi-Chart Grid + Right Sidebar -->
+
+
+
+  <div class="flex flex-1 overflow-hidden relative">
+
+
+
+    
+
+
+
+    <!-- Left Drawing Toolbar -->
+
+
+
+    <aside class="tv-left-toolbar">
+
+
+
+      <button class="tv-tool-btn active" data-tool="cursor" data-title="Crosshair Cursor">
+
+
+
+        <i data-lucide="plus" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="trendline" data-title="Trend Line">
+
+
+
+        <i data-lucide="trending-up" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="horizontal" data-title="Horizontal Line (Support/Resistance)">
+
+
+
+        <i data-lucide="minus" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="vertical" data-title="Vertical Line (Time Marker)">
+
+
+
+        <i data-lucide="split" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="rectangle" data-title="Order Block / Rectangle Box">
+
+
+
+        <i data-lucide="square" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="fibonacci" data-title="Fibonacci Retracement">
+
+
+
+        <i data-lucide="git-commit" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn" data-tool="measure" data-title="Measure Ruler (Delta & %)">
+
+
+
+        <i data-lucide="ruler" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <div class="w-6 h-px bg-[#2a2e39] my-1"></div>
+
+
+
+      <button class="tv-tool-btn" data-tool="eraser" data-title="Eraser Mode">
+
+
+
+        <i data-lucide="eraser" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+      <button class="tv-tool-btn hover:text-[#f23645]" data-tool="clear" data-title="Delete All Drawings">
+
+
+
+        <i data-lucide="trash-2" class="w-4 h-4"></i>
+
+
+
+      </button>
+
+
+
+    </aside>
+
+
+
+
+
+
+
+    <!-- Center Multi-Chart Grid Container -->
+
+
+
+    <main class="flex-1 h-full overflow-hidden relative" id="chart-viewport">
+
+
+
+      <div id="chart-grid" class="layout-4">
+
+
+
+        <!-- Dynamic Chart Tiles Injected Here by MultiChartGrid -->
+
+
+
+      </div>
+
+
+
+      <!-- Persistent Floating Sidebar Restore Tab (Visible when sidebar is collapsed) -->
+
+
+
+      <div id="sidebar-restore-tab" class="hidden" title="Click to Restore Watchlist Sidebar">
+
+
+
+        <i data-lucide="chevron-left" class="w-4 h-4"></i>
+
+
+
+        <span class="restore-tab-text">WATCHLIST</span>
+
+
+
+      </div>
+
+
+
+    </main>
+
+
+
+
+
+
+
+    <!-- Right Sidebar (Watchlist, Depth, Technicals, Alerts) -->
+
+
+
+    <aside id="watchlist-panel-container" class="tv-right-sidebar"></aside>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Bottom Dock: Paper Trading Terminal (Minimized by default, expandable on demand) -->
+
+
+
+  <footer id="paper-dock-container" class="tv-bottom-panel collapsed" style="height: 32px;"></footer>
+
+
+
+
+
+
+
+  <!-- ================= MODALS ================= -->
+
+
+
+
+
+
+
+  <!-- Symbol Search Modal -->
+
+
+
+  <div id="symbol-search-modal" class="tv-modal-backdrop hidden">
+
+
+
+    <div class="tv-modal">
+
+
+
+      <!-- Search Input Header -->
+
+
+
+      <div class="p-3 border-b border-[#2a2e39] flex items-center space-x-3 bg-[#1e222d]">
+
+
+
+        <i data-lucide="search" class="w-5 h-5 text-[#787b86]"></i>
+
+
+
+        <input id="symbol-search-input" type="text" placeholder="Search symbol or market (e.g. RELIANCE, TCS, INFY, NIFTY50, BTC, AAPL)..." class="w-full bg-transparent text-sm text-white focus:outline-none placeholder-[#787b86]">
+
+
+
+        <button id="btn-close-symbol-modal" class="text-[#787b86] hover:text-white p-1">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Categories Tabs -->
+
+
+
+      <div class="flex items-center space-x-1 px-3 py-2 bg-[#131722] border-b border-[#2a2e39] overflow-x-auto">
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#2962ff] bg-[rgba(41,98,255,0.12)] symbol-cat-btn" data-category="ALL">All</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Indian Stocks">🇮🇳 Indian (NSE)</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Crypto">Crypto</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Stocks">US Stocks</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Indices">Indices</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Commodities">Commodities</button>
+
+
+
+        <button class="px-3 py-1 rounded text-xs font-medium text-[#787b86] hover:text-[#d1d4dc] symbol-cat-btn" data-category="Forex">Forex</button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Symbol Results List -->
+
+
+
+      <div id="symbol-results-list" class="max-h-80 overflow-y-auto divide-y divide-[rgba(42,46,57,0.3)] bg-[#1e222d]"></div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Technical Indicators Modal -->
+
+
+
+  <div id="indicators-modal" class="tv-modal-backdrop hidden">
+
+
+
+    <div class="tv-modal tv-modal-wide max-w-2xl">
+
+
+
+      <div class="p-3 border-b border-[#2a2e39] flex items-center justify-between bg-[#1e222d]">
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <i data-lucide="activity" class="w-4 h-4 text-[#2962ff]"></i>
+
+
+
+          <span class="font-bold text-sm text-white">Indicators, Metrics & Strategies</span>
+
+
+
+        </div>
+
+
+
+        <button id="btn-close-indicators-modal" class="text-[#787b86] hover:text-white p-1">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+      <div id="indicators-options-list" class="p-3 space-y-2.5 max-h-[75vh] overflow-y-auto bg-[#1e222d]"></div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- DhanHQ API Connection Modal -->
+
+
+
+  <div id="dhan-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl w-full max-w-md shadow-2xl overflow-hidden flex flex-col">
+
+
+
+      <!-- Modal Header -->
+
+
+
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <span class="text-amber-400 text-lg">⚡</span>
+
+
+
+          <div>
+
+
+
+            <h3 class="text-sm font-bold text-white">Connect DhanHQ Account</h3>
+
+
+
+            <p class="text-[10px] text-[#787b86]">Official zero-delay live tick & intraday market data</p>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+        <button id="btn-close-dhan-modal" class="text-[#787b86] hover:text-white p-1 rounded transition">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Modal Body -->
+
+
+
+      <div class="p-4 space-y-3.5 text-xs">
+
+
+
+        <div id="dhan-status-box" class="p-2.5 rounded-lg border border-[#2a2e39] bg-[#131722] flex items-center justify-between">
+
+
+
+          <div class="flex items-center space-x-2">
+
+
+
+            <span id="dhan-modal-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+
+
+
+            <span id="dhan-modal-status-text" class="font-semibold text-[#d1d4dc]">Status: Not Configured</span>
+
+
+
+          </div>
+
+
+
+          <label class="flex items-center space-x-1.5 cursor-pointer select-none">
+
+
+
+            <input type="checkbox" id="dhan-enable-toggle" class="form-checkbox h-3.5 w-3.5 rounded bg-[#1e222d] border-[#2a2e39] text-[#2962ff] focus:ring-0">
+
+
+
+            <span class="text-[11px] text-[#787b86]">Enable Live Feed</span>
+
+
+
+          </label>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="text-[11px] text-[#787b86] bg-[#2a2e39]/30 p-2.5 rounded border border-[#2a2e39]/50 space-y-1">
+
+
+
+          <p class="font-semibold text-[#d1d4dc]">📌 How to get your credentials:</p>
+
+
+
+          <ol class="list-decimal list-inside space-y-0.5 text-[#9aa0a6]">
+
+
+
+            <li>Log into <a href="https://web.dhan.co" target="_blank" class="text-[#2962ff] underline font-semibold">web.dhan.co</a></li>
+
+
+
+            <li>Click <b>Profile</b> (top right) &rarr; <b>Access DhanHQ APIs</b></li>
+
+
+
+            <li>Copy your <b>Client ID</b> and generate a new <b>Access Token</b></li>
+
+
+
+          </ol>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="space-y-1">
+
+
+
+          <label class="font-semibold text-[#d1d4dc] block">Dhan Client ID</label>
+
+
+
+          <input type="text" id="dhan-client-id-input" placeholder="e.g. 1000123456" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="space-y-1">
+
+
+
+          <label class="font-semibold text-[#d1d4dc] block">Access Token</label>
+
+
+
+          <textarea id="dhan-access-token-input" rows="3" placeholder="Paste your 24h / 30-day Access Token here..." class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono break-all"></textarea>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Modal Footer -->
+
+
+
+      <div class="flex items-center justify-between px-4 py-3 border-t border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <span id="dhan-save-msg" class="text-[11px] text-[#787b86]"></span>
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <button id="btn-cancel-dhan-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">Cancel</button>
+
+
+
+          <button id="btn-save-dhan-config" class="px-3.5 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow-md">
+
+
+
+            <span>Test & Save</span>
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+  <!-- Orders History & Management Modal -->
+
+
+
+  <div id="orders-manager-modal" class="hidden fixed inset-0 z-[9999] flex items-center justify-center bg-black/70 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl max-h-[85vh] flex flex-col overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+
+
+
+      
+
+
+
+      <!-- Modal Header -->
+
+
+
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-3">
+
+
+
+          <div class="flex items-center space-x-2">
+
+
+
+            <i data-lucide="clipboard-list" class="w-5 h-5 text-[#2962ff]"></i>
+
+
+
+            <h3 class="font-bold text-base text-white tracking-wide">Orders & Positions</h3>
+
+
+
+          </div>
+
+
+
+          <div id="orders-dhan-status-pill" class="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs bg-[#2a2e39]/60 border border-[#2a2e39]">
+
+
+
+            <span class="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span>
+
+
+
+            <span class="text-[#089981] font-semibold">DhanHQ Live</span>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <button id="btn-orders-new" class="px-3 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow">
+
+
+
+            <i data-lucide="plus" class="w-3.5 h-3.5"></i>
+
+
+
+            <span>Add Order</span>
+
+
+
+          </button>
+
+
+
+          <button id="btn-orders-refresh" class="px-2.5 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition flex items-center space-x-1" title="Refresh Orders">
+
+
+
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+
+
+
+          </button>
+
+
+
+          <button id="btn-close-orders-modal" class="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">
+
+
+
+            <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Filter Subheader Bar -->
+
+
+
+      <div class="flex items-center justify-between px-5 py-2 border-b border-[#2a2e39] bg-[#1e222d]">
+
+
+
+        <div class="flex items-center space-x-1 text-xs">
+
+
+
+          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold bg-[#2962ff] text-white transition" data-filter="all">All Orders</button>
+
+
+
+          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="pending">Open / Pending</button>
+
+
+
+          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="traded">Executed / Traded</button>
+
+
+
+          <button class="orders-filter-tab px-3 py-1 rounded-md font-semibold text-[#787b86] hover:text-[#d1d4dc] transition" data-filter="cancelled">Cancelled / Rejected</button>
+
+
+
+        </div>
+
+
+
+        <div class="text-[11px] text-[#787b86]">
+
+
+
+          Real-time sync with DhanHQ orderbook
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Orders Table Container -->
+
+
+
+      <div class="flex-1 overflow-auto p-0">
+
+
+
+        <table class="w-full text-left border-collapse">
+
+
+
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+
+
+
+            <tr>
+
+
+
+              <th class="py-2.5 px-3">Time</th>
+
+
+
+              <th class="py-2.5 px-3">Symbol</th>
+
+
+
+              <th class="py-2.5 px-3">Side</th>
+
+
+
+              <th class="py-2.5 px-3">Type</th>
+
+
+
+              <th class="py-2.5 px-3">Product</th>
+
+
+
+              <th class="py-2.5 px-3">Filled / Qty</th>
+
+
+
+              <th class="py-2.5 px-3">Price</th>
+
+
+
+              <th class="py-2.5 px-3">Status</th>
+
+
+
+              <th class="py-2.5 px-3 text-right">Actions</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody id="orders-table-body" class="divide-y divide-[#2a2e39]/40">
+
+
+
+            <!-- Populated dynamically by OrdersManager -->
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Place Order Modal (Direct Dhan / Paper Trade Ticket) -->
+
+
+
+  <div id="order-place-modal" class="hidden fixed inset-0 z-[10000] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-md overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+
+
+
+      
+
+
+
+      <!-- Ticket Header with BUY / SELL Tabs -->
+
+
+
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-1.5 p-1 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <button id="order-side-buy" class="px-4 py-1 rounded text-xs font-bold transition select-none cursor-pointer">BUY</button>
+
+
+
+          <button id="order-side-sell" class="px-4 py-1 rounded text-xs font-bold transition select-none cursor-pointer">SELL</button>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <span id="order-symbol-display" class="font-bold text-white font-mono text-sm">RELIANCE</span>
+
+
+
+          <span id="order-market-price-tag" class="text-xs text-[#089981] font-mono font-semibold">₹0.00</span>
+
+
+
+          <button id="btn-close-place-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+
+
+
+            <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Ticket Body -->
+
+
+
+      <div class="p-4 space-y-4">
+
+
+
+        <input type="hidden" id="order-symbol-input" value="RELIANCE">
+
+
+
+
+
+
+
+        <!-- Destination Routing: DhanHQ vs Paper Trading -->
+
+
+
+        <div class="flex items-center justify-between p-2.5 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <div class="flex items-center space-x-2">
+
+
+
+            <i data-lucide="zap" class="w-4 h-4 text-[#2962ff]"></i>
+
+
+
+            <div>
+
+
+
+              <div class="text-xs font-bold text-white">Route directly to DhanHQ</div>
+
+
+
+              <div class="text-[10px] text-[#787b86]">Live market execution via connected account</div>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+          <label class="relative inline-flex items-center cursor-pointer">
+
+
+
+            <input type="checkbox" id="order-route-dhan-toggle" class="sr-only peer" checked>
+
+
+
+            <div class="w-9 h-5 bg-[#2a2e39] peer-focus:outline-none rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:rounded-full after:h-4 after:w-4 after:transition-all peer-checked:bg-[#089981]"></div>
+
+
+
+          </label>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <!-- Product Type (Intraday MIS vs CNC Delivery vs Margin) -->
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1.5">Product Type</label>
+
+
+
+          <div class="grid grid-cols-3 gap-1.5">
+
+
+
+            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
+
+
+
+              <input type="radio" name="product-type" value="INTRADAY" class="hidden" checked>
+
+
+
+              <span>Intraday (MIS)</span>
+
+
+
+            </label>
+
+
+
+            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
+
+
+
+              <input type="radio" name="product-type" value="CNC" class="hidden">
+
+
+
+              <span>Delivery (CNC)</span>
+
+
+
+            </label>
+
+
+
+            <label class="flex items-center justify-center p-2 rounded border border-[#2a2e39] bg-[#131722] cursor-pointer hover:border-[#2962ff] transition text-xs font-medium text-[#d1d4dc] has-[:checked]:border-[#2962ff] has-[:checked]:bg-[rgba(41,98,255,0.12)] has-[:checked]:text-[#2962ff]">
+
+
+
+              <input type="radio" name="product-type" value="MARGIN" class="hidden">
+
+
+
+              <span>Margin</span>
+
+
+
+            </label>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <!-- Order Type (MARKET vs LIMIT) -->
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1.5">Order Type</label>
+
+
+
+          <div class="grid grid-cols-2 gap-1.5">
+
+
+
+            <button type="button" class="order-type-btn py-1.5 rounded border border-[#2a2e39] bg-[#2962ff] text-white text-xs font-semibold transition" data-type="MARKET">Market</button>
+
+
+
+            <button type="button" class="order-type-btn py-1.5 rounded border border-[#2a2e39] bg-[#1e222d] text-[#787b86] text-xs font-semibold transition" data-type="LIMIT">Limit</button>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <!-- Quantity & Price Inputs -->
+
+
+
+        <div class="grid grid-cols-2 gap-3">
+
+
+
+          <div>
+
+
+
+            <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1">Quantity</label>
+
+
+
+            <div class="flex items-center border border-[#2a2e39] rounded bg-[#131722] overflow-hidden focus-within:border-[#2962ff]">
+
+
+
+              <button type="button" id="btn-qty-minus" class="px-2.5 py-1.5 text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">-</button>
+
+
+
+              <input type="number" id="order-qty-input" value="1" min="1" class="w-full text-center bg-transparent py-1.5 text-xs text-white focus:outline-none font-mono font-bold">
+
+
+
+              <button type="button" id="btn-qty-plus" class="px-2.5 py-1.5 text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">+</button>
+
+
+
+            </div>
+
+
+
+            <!-- Quick Qty Pills -->
+
+
+
+            <div class="flex items-center space-x-1 mt-1 text-[10px]">
+
+
+
+              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="1">+1</button>
+
+
+
+              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="5">+5</button>
+
+
+
+              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="10">+10</button>
+
+
+
+              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="50">+50</button>
+
+
+
+              <button type="button" class="qty-preset-btn px-1.5 py-0.5 rounded bg-[#2a2e39] text-[#787b86] hover:text-white transition" data-qty="100">+100</button>
+
+
+
+            </div>
+
+
+
+          </div>
+
+
+
+
+
+
+
+          <div id="order-price-wrapper" class="opacity-50 pointer-events-none transition">
+
+
+
+            <label class="block text-[11px] font-semibold text-[#787b86] uppercase tracking-wider mb-1">Limit Price (₹)</label>
+
+
+
+            <input type="number" id="order-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
+
+
+
+            <div class="text-[10px] text-[#787b86] mt-1">Leave for market execution</div>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <!-- Estimated Margin Preview -->
+
+
+
+        <div class="flex items-center justify-between text-xs py-2 px-3 rounded bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <span class="text-[#787b86]">Estimated Value / Margin:</span>
+
+
+
+          <span id="order-est-margin" class="font-mono font-bold text-white">₹0.00</span>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div id="order-place-status-msg" class="text-center text-xs"></div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Ticket Footer -->
+
+
+
+      <div class="px-4 py-3 border-t border-[#2a2e39] bg-[#181b24] flex items-center justify-between">
+
+
+
+        <button type="button" id="btn-cancel-place-modal" class="px-3 py-2 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+
+
+
+        <button type="button" id="btn-submit-order" class="w-full ml-3 py-2.5 rounded text-xs font-bold text-white transition shadow-lg flex items-center justify-center space-x-1.5 cursor-pointer">
+
+
+
+          <span>Submit Order</span>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Modify Order Modal -->
+
+
+
+  <div id="order-modify-modal" class="hidden fixed inset-0 z-[10001] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm">
+
+
+
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <h4 class="font-bold text-white flex items-center space-x-1.5">
+
+
+
+          <i data-lucide="edit-3" class="w-4 h-4 text-[#2962ff]"></i>
+
+
+
+          <span>Modify Order</span>
+
+
+
+        </h4>
+
+
+
+        <button id="btn-close-modify-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+      <div class="p-4 space-y-3">
+
+
+
+        <div class="flex items-center justify-between text-xs border-b border-[#2a2e39] pb-2 font-mono">
+
+
+
+          <span class="text-[#787b86]">Order ID: <b id="modify-order-id" class="text-white"></b></span>
+
+
+
+          <span class="text-[#787b86]">Symbol: <b id="modify-order-symbol" class="text-white"></b> (<span id="modify-order-side" class="font-bold"></span>)</span>
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Quantity</label>
+
+
+
+          <input type="number" id="modify-qty-input" min="1" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Price (₹)</label>
+
+
+
+          <input type="number" id="modify-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono font-bold">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Trigger Price (Optional)</label>
+
+
+
+          <input type="number" id="modify-trigger-price-input" step="0.05" class="w-full border border-[#2a2e39] rounded bg-[#131722] px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div id="modify-status-msg" class="text-center text-xs"></div>
+
+
+
+      </div>
+
+
+
+      <div class="px-4 py-3 border-t border-[#2a2e39] bg-[#181b24] flex items-center justify-end space-x-2">
+
+
+
+        <button id="btn-cancel-modify-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+
+
+
+        <button id="btn-submit-modify" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">Update Order</button>
+
+
+
+      </div>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+
+
+
+
+  <!-- User Authentication Modal (Sign In / Register) -->
+
+
+
+  <div id="auth-modal" class="hidden fixed inset-0 z-[10002] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+
+
+
+      
+
+
+
+      <!-- Modal Header -->
+
+
+
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <i data-lucide="user-check" class="w-5 h-5 text-[#2962ff]"></i>
+
+
+
+          <h3 class="font-bold text-base text-white tracking-wide">Trader Account</h3>
+
+
+
+        </div>
+
+
+
+        <!-- Non-dismissible wall: no close button until authenticated -->
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Auth Tabs -->
+
+
+
+      <div class="flex border-b border-[#2a2e39] bg-[#1e222d] text-xs">
+
+
+
+        <button id="tab-auth-login" class="flex-1 py-2.5 font-bold text-center border-b-2 border-[#2962ff] text-white transition">Sign In</button>
+
+
+
+        <button id="tab-auth-register" class="flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-[#787b86] hover:text-white transition">Create Account</button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Sign In Form -->
+
+
+
+      <form id="form-auth-login" class="p-5 space-y-3.5">
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
+
+
+
+          <input type="text" id="login-username-input" required placeholder="e.g. admin or your name" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+
+
+
+          <input type="password" id="login-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <div class="flex items-center justify-between mb-1">
+
+
+
+            <label class="block text-[11px] font-semibold text-[#787b86]">Authorization Code</label>
+
+
+
+            <span class="text-[10px] text-amber-400 font-mono">(from administrator)</span>
+
+
+
+          </div>
+
+
+
+          <input type="text" id="login-authcode-input" maxlength="10" placeholder="e.g. K9X2B7M4Q1" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white uppercase tracking-wider font-mono placeholder-[#787b86] focus:outline-none focus:border-[#2962ff]">
+
+
+
+          <div class="text-[10px] text-[#787b86] mt-1 leading-tight">Admin leave blank; registered traders enter the 10-character code provided by admin.</div>
+
+
+
+        </div>
+
+
+
+        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow-lg mt-2 cursor-pointer">
+
+
+
+          Sign In
+
+
+
+        </button>
+
+
+
+
+
+
+
+      </form>
+
+
+
+
+
+
+
+      <!-- Register Form -->
+
+
+
+      <form id="form-auth-register" class="hidden p-5 space-y-3.5">
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Choose Username</label>
+
+
+
+          <input type="text" id="register-username-input" required placeholder="e.g. rohit" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email Address</label>
+
+
+
+          <input type="email" id="register-email-input" required placeholder="name@example.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+
+
+
+          <input type="password" id="register-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow-lg mt-2 cursor-pointer">
+
+
+
+          Submit for Approval
+
+
+
+        </button>
+
+
+
+        <div class="text-[10px] text-[#787b86] text-center pt-1 leading-normal">
+
+
+
+          Your request will be submitted to the administrator for approval. The admin will provide your 10-character authorization code.
+
+
+
+        </div>
+
+
+
+      </form>
+
+
+
+
+
+
+
+      <div id="auth-error-msg" class="px-5 pb-2 text-center text-xs"></div>
+
+
+
+      
+
+
+
+
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Admin Control Center & Traffic Analytics Modal -->
+
+
+
+  <div id="admin-panel-modal" class="hidden fixed inset-0 z-[10003] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+
+
+
+      
+
+
+
+      <!-- Modal Header -->
+
+
+
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-3">
+
+
+
+          <div class="p-1.5 rounded-lg bg-[#7c3aed]/20 border border-[#7c3aed]/40 text-[#c084fc]">
+
+
+
+            <i data-lucide="shield" class="w-5 h-5"></i>
+
+
+
+          </div>
+
+
+
+          <div>
+
+
+
+            <h3 class="font-bold text-base text-white tracking-wide">Admin Control Center</h3>
+
+
+
+            <p class="text-[11px] text-[#787b86]">User Management & Real-Time Traffic Analytics</p>
+
+
+
+          </div>
+
+
+
+        </div>
+
+
+
+
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <button id="btn-admin-add-user" class="px-3 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition flex items-center space-x-1.5 shadow">
+
+
+
+            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+
+
+
+            <span>Add User</span>
+
+
+
+          </button>
+
+
+
+          <button id="btn-admin-refresh" class="px-2.5 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition flex items-center space-x-1" title="Refresh Admin Metrics">
+
+
+
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+
+
+
+          </button>
+
+
+
+          <button id="btn-close-admin-modal" class="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">
+
+
+
+            <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+          </button>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Notification Banner: Awaiting New User Requests -->
+
+
+
+      <div id="admin-pending-alert-banner" class="hidden px-4 py-2.5 bg-amber-500/15 border-b border-amber-500/30 flex items-center justify-between text-xs text-amber-300">
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <i data-lucide="bell" class="w-4 h-4 text-amber-400 animate-bounce"></i>
+
+
+
+          <span class="font-bold tracking-wide">Awaiting New User Request:</span>
+
+
+
+          <span id="admin-pending-alert-text">User registration request(s) waiting for your authorization.</span>
+
+
+
+        </div>
+
+
+
+        <button id="btn-banner-go-approvals" class="px-3 py-1 rounded bg-amber-500 hover:bg-amber-400 text-black font-bold text-[11px] transition shadow flex items-center space-x-1 cursor-pointer">
+
+
+
+          <span>Review & Approve</span>
+
+
+
+          <i data-lucide="arrow-right" class="w-3 h-3"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- KPI Summary Cards -->
+
+
+
+      <div class="grid grid-cols-4 gap-3 p-4 bg-[#181b24]/50 border-b border-[#2a2e39]">
+
+
+
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Registered Users</div>
+
+
+
+          <div id="admin-kpi-total-users" class="text-xl font-bold text-white font-mono mt-1">0</div>
+
+
+
+        </div>
+
+
+
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Users (Today)</div>
+
+
+
+          <div id="admin-kpi-active-today" class="text-xl font-bold text-[#089981] font-mono mt-1">0</div>
+
+
+
+        </div>
+
+
+
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Sessions</div>
+
+
+
+          <div id="admin-kpi-active-sessions" class="text-xl font-bold text-[#c084fc] font-mono mt-1">0</div>
+
+
+
+        </div>
+
+
+
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+
+
+
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Traffic Hits</div>
+
+
+
+          <div id="admin-kpi-total-requests" class="text-xl font-bold text-[#2962ff] font-mono mt-1">0</div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Navigation Tabs -->
+
+
+
+      <div class="flex items-center space-x-1 px-4 py-2 border-b border-[#2a2e39] bg-[#1e222d] text-xs overflow-x-auto">
+
+
+
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-[#7c3aed] text-white bg-[#7c3aed]/20 transition flex items-center space-x-1.5" data-admin-tab="users">
+
+
+
+          <i data-lucide="users" class="w-3.5 h-3.5"></i>
+
+
+
+          <span>User Directory</span>
+
+
+
+        </button>
+
+
+
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="approvals">
+
+
+
+          <i data-lucide="user-check" class="w-3.5 h-3.5 text-amber-400"></i>
+
+
+
+          <span>User Approvals</span>
+
+
+
+          <span id="admin-pending-count-badge" class="hidden bg-amber-500 text-black text-[10px] font-bold px-1.5 py-0.2 rounded-full font-mono">0</span>
+
+
+
+        </button>
+
+
+
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="activity">
+
+
+
+          <i data-lucide="activity" class="w-3.5 h-3.5"></i>
+
+
+
+          <span>Traffic & Live Activity</span>
+
+
+
+        </button>
+
+
+
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition flex items-center space-x-1.5" data-admin-tab="endpoints">
+
+
+
+          <i data-lucide="server" class="w-3.5 h-3.5"></i>
+
+
+
+          <span>Top Endpoints</span>
+
+
+
+        </button>
+
+
+
+
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Tab 1: User Accounts Table -->
+
+
+
+      <div id="admin-tab-users-content" class="flex-1 overflow-auto p-0">
+
+
+
+        <table class="w-full text-left border-collapse">
+
+
+
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+
+
+
+            <tr>
+
+
+
+              <th class="py-2.5 px-3">ID</th>
+
+
+
+              <th class="py-2.5 px-3">Username</th>
+
+
+
+              <th class="py-2.5 px-3">Email</th>
+
+
+
+              <th class="py-2.5 px-3">Role</th>
+
+
+
+              <th class="py-2.5 px-3">Auth Code</th>
+
+
+
+              <th class="py-2.5 px-3">Registered</th>
+
+
+
+              <th class="py-2.5 px-3">Status</th>
+
+
+
+              <th class="py-2.5 px-3 text-right">Actions</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody id="admin-users-table-body" class="divide-y divide-[#2a2e39]/40">
+
+
+
+            <!-- Dynamic Users -->
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Tab 2: Activity Table -->
+
+
+
+      <div id="admin-tab-activity-content" class="hidden flex-1 overflow-auto p-0">
+
+
+
+        <table class="w-full text-left border-collapse">
+
+
+
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+
+
+
+            <tr>
+
+
+
+              <th class="py-2.5 px-3">Time</th>
+
+
+
+              <th class="py-2.5 px-3">User</th>
+
+
+
+              <th class="py-2.5 px-3">Request Endpoint</th>
+
+
+
+              <th class="py-2.5 px-3">Client IP</th>
+
+
+
+              <th class="py-2.5 px-3">HTTP Status</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody id="admin-activity-table-body" class="divide-y divide-[#2a2e39]/40">
+
+
+
+            <!-- Dynamic Traffic Logs -->
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Tab 3: Endpoints Breakdown -->
+
+
+
+      <div id="admin-tab-endpoints-content" class="hidden flex-1 overflow-auto p-4 space-y-2">
+
+
+
+        <div class="text-xs text-[#787b86] mb-2 font-semibold uppercase tracking-wider">Most Requested Platform Endpoints</div>
+
+
+
+        <div id="admin-endpoints-list" class="space-y-2">
+
+
+
+          <!-- Dynamic Endpoints -->
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <!-- Tab 4: User Approvals -->
+
+
+
+      <div id="admin-tab-approvals-content" class="hidden flex-1 overflow-auto p-0">
+
+
+
+        <div class="p-3 bg-[#181b24] border-b border-[#2a2e39] flex items-center justify-between text-xs">
+
+
+
+          <div class="flex items-center space-x-2 text-[#d1d4dc]">
+
+
+
+            <i data-lucide="shield-alert" class="w-4 h-4 text-amber-400"></i>
+
+
+
+            <span>Pending Registration Requests awaiting Admin Authorization</span>
+
+
+
+          </div>
+
+
+
+          <div class="text-[11px] text-amber-300 font-medium">Click Approve to generate a 10-character authorization code to give to the user.</div>
+
+
+
+        </div>
+
+
+
+        <table class="w-full text-left border-collapse">
+
+
+
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+
+
+
+            <tr>
+
+
+
+              <th class="py-2.5 px-3">ID</th>
+
+
+
+              <th class="py-2.5 px-3">Username</th>
+
+
+
+              <th class="py-2.5 px-3">Email</th>
+
+
+
+              <th class="py-2.5 px-3">Requested At</th>
+
+
+
+              <th class="py-2.5 px-3">Status</th>
+
+
+
+              <th class="py-2.5 px-3 text-right">Approval Actions</th>
+
+
+
+            </tr>
+
+
+
+          </thead>
+
+
+
+          <tbody id="admin-pending-table-body" class="divide-y divide-[#2a2e39]/40">
+
+
+
+            <!-- Dynamic Pending Users -->
+
+
+
+          </tbody>
+
+
+
+        </table>
+
+
+
+        <div id="admin-pending-empty-msg" class="hidden p-8 text-center text-[#787b86] text-xs">
+
+
+
+          <i data-lucide="check-circle" class="w-8 h-8 text-[#089981] mx-auto mb-2 opacity-60"></i>
+
+
+
+          <div>No pending user requests. All accounts are up-to-date and authorized!</div>
+
+
+
+        </div>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Admin: Create User Modal -->
+
+
+
+  <div id="admin-create-user-modal" class="hidden fixed inset-0 z-[10004] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm">
+
+
+
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <h4 class="font-bold text-white flex items-center space-x-1.5">
+
+
+
+          <i data-lucide="user-plus" class="w-4 h-4 text-[#7c3aed]"></i>
+
+
+
+          <span>Add New User</span>
+
+
+
+        </h4>
+
+
+
+        <button id="btn-close-create-user-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+
+
+
+
+      <form id="form-admin-create-user" class="p-4 space-y-3">
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
+
+
+
+          <input type="text" id="new-user-username-input" required placeholder="e.g. rahul" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+
+
+
+          <input type="password" id="new-user-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
+
+
+
+        </div>
+
+
+
+        <div class="text-[11px] text-[#787b86] bg-[#131722] p-2.5 rounded border border-[#2a2e39]">
+
+
+
+          A 10-character authorization code will be generated upon creation for you to share manually.
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Role</label>
+
+
+
+          <select id="new-user-role-select" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#7c3aed]">
+
+
+
+            <option value="user">User (Standard Access)</option>
+
+
+
+            <option value="admin">Administrator (Full Access)</option>
+
+
+
+          </select>
+
+
+
+        </div>
+
+
+
+        <div id="admin-create-user-status-msg" class="text-center text-xs"></div>
+
+
+
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
+
+
+
+          <button type="button" id="btn-cancel-create-user" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+
+
+
+          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition shadow">Create User</button>
+
+
+
+        </div>
+
+
+
+      </form>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  
+
+
+
+  <!-- Change Password Modal -->
+
+
+
+  <div id="change-password-modal" class="hidden fixed inset-0 z-[10005] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+
+
+
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+
+
+
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+
+
+
+        <div class="flex items-center space-x-2">
+
+
+
+          <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
+
+
+
+          <h4 class="font-bold text-white">Change Account Password</h4>
+
+
+
+        </div>
+
+
+
+        <button id="btn-close-change-pwd-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+
+
+
+          <i data-lucide="x" class="w-4 h-4"></i>
+
+
+
+        </button>
+
+
+
+      </div>
+
+
+
+      <form id="form-change-password" class="p-5 space-y-3.5">
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Current Password</label>
+
+
+
+          <input type="password" id="change-current-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">New Password</label>
+
+
+
+          <input type="password" id="change-new-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div>
+
+
+
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Confirm New Password</label>
+
+
+
+          <input type="password" id="change-confirm-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+
+
+
+        </div>
+
+
+
+        <div id="change-pwd-status-msg" class="text-center text-xs"></div>
+
+
+
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
+
+
+
+          <button type="button" id="btn-cancel-change-pwd" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+
+
+
+          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">Update Password</button>
+
+
+
+        </div>
+
+
+
+      </form>
+
+
+
+    </div>
+
+
+
+  </div>
+
+
+
+
+
+
+
+  <!-- Application Logic Scripts -->
+
+
+
+  <script src="/static/js/indicators.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/drawings.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/data-feed.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/chart-instance.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/multi-chart-grid.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/watchlist.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/paper-trading.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/orders-manager.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/auth-manager.js?v=2.25"></script>
+
+
+
+  <script src="/static/js/app.js?v=2.25"></script>
+
+
+
+</body>
+
+
+
+</html>
+
+
+
