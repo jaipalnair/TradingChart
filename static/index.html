@@ -57,16 +57,16 @@
 
       <div class="tv-divider"></div>
 
-      <!-- Quick Timeframe Selector Pills -->
+      <!-- Quick Timeframe Selector Pills (Responsive) -->
       <div class="flex items-center space-x-0.5 text-xs shrink-0" id="header-timeframe-group">
-        <button class="timeframe-pill" data-tf="1m">1m</button>
+        <button class="timeframe-pill hidden 2xl:inline-flex" data-tf="1m">1m</button>
         <button class="timeframe-pill active" data-tf="5m">5m</button>
         <button class="timeframe-pill" data-tf="15m">15m</button>
-        <button class="timeframe-pill" data-tf="30m">30m</button>
+        <button class="timeframe-pill hidden xl:inline-flex" data-tf="30m">30m</button>
         <button class="timeframe-pill" data-tf="1h">1H</button>
-        <button class="timeframe-pill" data-tf="4h">4H</button>
+        <button class="timeframe-pill hidden 2xl:inline-flex" data-tf="4h">4H</button>
         <button class="timeframe-pill" data-tf="1d">1D</button>
-        <button class="timeframe-pill hidden xl:inline-flex" data-tf="1w">1W</button>
+        <button class="timeframe-pill hidden 2xl:inline-flex" data-tf="1w">1W</button>
       </div>
 
       <div class="tv-divider"></div>
@@ -84,7 +84,7 @@
     </div>
 
     <!-- Right Section: Multi-Chart Layouts, Sync, Theme, Fullscreen -->
-    <div class="flex items-center space-x-1.5 relative">
+    <div class="flex items-center space-x-1 relative">
       <!-- Multi-Chart Layout Selector -->
       <div class="relative">
         <button id="btn-layout-picker" class="tv-btn border border-[#2a2e39] bg-[#1e222d] text-xs font-semibold" title="Select Multi-Chart Layout">
@@ -234,7 +234,7 @@
       </button>
 
       <!-- Market Status & Live IST Clock (Combined compact pill) -->
-      <div id="header-status-clock-group" class="flex items-center space-x-1.5 px-2 py-1 rounded border border-[#2a2e39] bg-[#1e222d] select-none shrink-0" title="NSE Indian Market (09:15 - 15:30 IST) & Live Time">
+      <div id="header-status-clock-group" class="hidden xl:flex items-center space-x-1 px-1.5 py-1 rounded border border-[#2a2e39] bg-[#1e222d] select-none shrink-0" title="NSE Indian Market (09:15 - 15:30 IST) & Live Time">
         <div id="header-market-status" class="flex items-center space-x-1 cursor-help">
           <span id="market-status-dot" class="w-1.5 h-1.5 rounded-full bg-[#f23645]"></span>
           <span id="market-status-text" class="text-[#f23645] text-[11px] font-bold">Closed</span>
@@ -248,19 +248,19 @@
       <div class="tv-divider"></div>
 
       <!-- Refresh All Charts -->
-      <button id="btn-refresh-all" class="tv-icon-btn" title="Reload & Refresh All Charts">
+      <button id="btn-refresh-all" class="tv-icon-btn hidden xl:flex" title="Reload & Refresh All Charts">
         <i data-lucide="rotate-cw" class="w-3.5 h-3.5"></i>
       </button>
 
       <!-- Snapshot Screenshot -->
-      <button id="btn-take-snapshot" class="tv-icon-btn" title="Take Chart Screenshot (PNG)">
+      <button id="btn-take-snapshot" class="tv-icon-btn hidden 2xl:flex" title="Take Chart Screenshot (PNG)">
         <i data-lucide="camera" class="w-3.5 h-3.5"></i>
       </button>
 
       <!-- DhanHQ Live Connection Button -->
       <button id="btn-dhan-modal" class="theme-switch-btn flex items-center space-x-1.5 px-2 py-1 rounded text-xs font-semibold border border-[#2a2e39] bg-[#1e222d] hover:border-[#2962ff] transition shadow-sm select-none cursor-pointer shrink-0" title="Connect DhanHQ for Real-Time NSE Live Feed">
         <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
-        <span class="text-[11px] font-semibold text-[#d1d4dc]">DhanHQ</span>
+        <span class="hidden 2xl:inline text-[11px] font-semibold text-[#d1d4dc]">DhanHQ</span>
       </button>
 
       <!-- Theme Switcher (Dark / Light Mode Toggle) -->
@@ -268,7 +268,7 @@
         <span class="theme-toggle-icon flex items-center">
           <i data-lucide="moon" class="w-3.5 h-3.5 text-amber-300"></i>
         </span>
-        <span id="theme-toggle-label" class="text-[11px] font-semibold text-[#d1d4dc]">Dark</span>
+        <span id="theme-toggle-label" class="hidden 2xl:inline text-[11px] font-semibold text-[#d1d4dc]">Dark</span>
       </button>
 
       <!-- Orders Management Button in Header -->
@@ -760,7 +760,13 @@
         </button>
       </form>
 
-      <div id="auth-error-msg" class="px-5 pb-4 text-center text-xs"></div>
+      <div id="auth-error-msg" class="px-5 pb-2 text-center text-xs"></div>
+      
+      <div class="px-5 pb-4 pt-1 text-center border-t border-[#2a2e39]/50">
+        <button type="button" id="btn-guest-continue" class="text-xs text-[#787b86] hover:text-[#d1d4dc] transition underline cursor-pointer">
+          Continue as Guest (explore without signing in)
+        </button>
+      </div>
     </div>
   </div>
 

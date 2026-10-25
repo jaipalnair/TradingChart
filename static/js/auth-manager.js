@@ -23,6 +23,15 @@ class AuthManager {
       await this.fetchCurrentUser();
     } else {
       this.updateHeaderUI();
+      // Auto-open Sign In / Register dialog on first visit so friends can immediately login or create an account
+      const hasDismissed = sessionStorage.getItem('tradeview_guest_dismissed');
+      if (!hasDismissed) {
+        setTimeout(() => {
+          if (!this.currentUser) {
+            this.openAuthModal('login');
+          }
+        }, 800);
+      }
     }
   }
 
@@ -63,8 +72,15 @@ class AuthManager {
       this.openAdminModal();
     });
 
-    // Close Modals
-    document.getElementById('btn-close-auth-modal')?.addEventListener('click', () => this.closeAuthModal());
+    // Close Modals & Guest Continue
+    document.getElementById('btn-close-auth-modal')?.addEventListener('click', () => {
+      sessionStorage.setItem('tradeview_guest_dismissed', 'true');
+      this.closeAuthModal();
+    });
+    document.getElementById('btn-guest-continue')?.addEventListener('click', () => {
+      sessionStorage.setItem('tradeview_guest_dismissed', 'true');
+      this.closeAuthModal();
+    });
     document.getElementById('btn-close-admin-modal')?.addEventListener('click', () => this.closeAdminModal());
     document.getElementById('btn-close-create-user-modal')?.addEventListener('click', () => this.closeCreateUserModal());
     document.getElementById('btn-cancel-create-user')?.addEventListener('click', () => this.closeCreateUserModal());
@@ -141,6 +157,10 @@ class AuthManager {
       if (menuName) menuName.textContent = this.currentUser.username;
       if (menuRole) menuRole.textContent = this.currentUser.role === 'admin' ? 'Administrator' : 'Standard User';
 
+      if (btnAuth) {
+        btnAuth.className = 'tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm cursor-pointer text-[#d1d4dc]';
+      }
+
       // Show Admin button if admin
       if (adminBtn) {
         if (this.currentUser.role === 'admin') {
@@ -150,7 +170,10 @@ class AuthManager {
         }
       }
     } else {
-      if (headerUsername) headerUsername.textContent = 'Sign In';
+      if (headerUsername) headerUsername.textContent = 'Sign In / Register';
+      if (btnAuth) {
+        btnAuth.className = 'px-3 py-1 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white shadow-md flex items-center space-x-1.5 shrink-0 transition cursor-pointer select-none';
+      }
       if (adminBtn) adminBtn.classList.add('hidden');
     }
     if (window.lucide) window.lucide.createIcons();
