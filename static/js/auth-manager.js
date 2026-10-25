@@ -23,15 +23,8 @@ class AuthManager {
       await this.fetchCurrentUser();
     } else {
       this.updateHeaderUI();
-      // Auto-open Sign In / Register dialog on first visit so friends can immediately login or create an account
-      const hasDismissed = sessionStorage.getItem('tradeview_guest_dismissed');
-      if (!hasDismissed) {
-        setTimeout(() => {
-          if (!this.currentUser) {
-            this.openAuthModal('login');
-          }
-        }, 800);
-      }
+      // Enforce strict authentication wall: charts will not work until user is signed in
+      this.openAuthModal('login');
     }
   }
 
@@ -72,14 +65,16 @@ class AuthManager {
       this.openAdminModal();
     });
 
-    // Close Modals & Guest Continue
-    document.getElementById('btn-close-auth-modal')?.addEventListener('click', () => {
-      sessionStorage.setItem('tradeview_guest_dismissed', 'true');
-      this.closeAuthModal();
+    // Change Password Modal Events
+    document.getElementById('btn-open-change-pwd')?.addEventListener('click', () => {
+      document.getElementById('user-profile-menu')?.classList.add('hidden');
+      this.openChangePasswordModal();
     });
-    document.getElementById('btn-guest-continue')?.addEventListener('click', () => {
-      sessionStorage.setItem('tradeview_guest_dismissed', 'true');
-      this.closeAuthModal();
+    document.getElementById('btn-close-change-pwd-modal')?.addEventListener('click', () => this.closeChangePasswordModal());
+    document.getElementById('btn-cancel-change-pwd')?.addEventListener('click', () => this.closeChangePasswordModal());
+    document.getElementById('form-change-password')?.addEventListener('submit', (e) => {
+      e.preventDefault();
+      this.handleChangePassword();
     });
     document.getElementById('btn-close-admin-modal')?.addEventListener('click', () => this.closeAdminModal());
     document.getElementById('btn-close-create-user-modal')?.addEventListener('click', () => this.closeCreateUserModal());
@@ -190,6 +185,10 @@ class AuthManager {
   }
 
   closeAuthModal() {
+    // Only allow closing if user is authenticated
+    if (!this.currentUser && !this.token) {
+      return;
+    }
     document.getElementById('auth-modal')?.classList.add('hidden');
   }
 
@@ -248,6 +247,14 @@ class AuthManager {
 
       // Load user profile & settings
       await this.loadUserSettings();
+
+      // Boot all charts with authenticated data feed
+      if (window.app?.multiChartGrid) {
+        window.app.multiChartGrid.instances.forEach(inst => inst.loadData());
+      }
+      if (window.watchlistPanel) {
+        window.watchlistPanel.renderWatchlist();
+      }
 
     } catch (e) {
       if (msgEl) {
@@ -651,6 +658,81 @@ class AuthManager {
       if (statusMsg) {
         statusMsg.className = 'text-xs text-[#f23645] font-semibold';
         statusMsg.textContent = `✕ ${e.message}`;
+      }
+    }
+  }
+
+  // ----------------- Change Password -----------------
+
+  openChangePasswordModal() {
+    const modal = document.getElementById('change-password-modal');
+    if (!modal) return;
+    const curIn = document.getElementById('change-current-pwd-input');
+    const newIn = document.getElementById('change-new-pwd-input');
+    const confIn = document.getElementById('change-confirm-pwd-input');
+    if (curIn) curIn.value = '';
+    if (newIn) newIn.value = '';
+    if (confIn) confIn.value = '';
+    const msgEl = document.getElementById('change-pwd-status-msg');
+    if (msgEl) {
+      msgEl.textContent = '';
+      msgEl.className = 'text-center text-xs';
+    }
+    modal.classList.remove('hidden');
+    if (window.lucide) window.lucide.createIcons();
+  }
+
+  closeChangePasswordModal() {
+    document.getElementById('change-password-modal')?.classList.add('hidden');
+  }
+
+  async handleChangePassword() {
+    const curPwd = document.getElementById('change-current-pwd-input')?.value;
+    const newPwd = document.getElementById('change-new-pwd-input')?.value;
+    const confirmPwd = document.getElementById('change-confirm-pwd-input')?.value;
+    const msgEl = document.getElementById('change-pwd-status-msg');
+
+    if (newPwd !== confirmPwd) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645] font-semibold';
+        msgEl.textContent = '✕ New passwords do not match';
+      }
+      return;
+    }
+
+    try {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#2962ff] animate-pulse';
+        msgEl.textContent = 'Updating password...';
+      }
+
+      const res = await fetch('/api/user/change-password', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({
+          current_password: curPwd,
+          new_password: newPwd
+        })
+      });
+
+      const data = await res.json();
+      if (!res.ok) {
+        throw new Error(data.detail || 'Failed to change password');
+      }
+
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#089981] font-semibold';
+        msgEl.textContent = '✓ Password updated successfully!';
+      }
+
+      setTimeout(() => {
+        this.closeChangePasswordModal();
+      }, 1200);
+
+    } catch (e) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645] font-semibold';
+        msgEl.textContent = `✕ ${e.message}`;
       }
     }
   }

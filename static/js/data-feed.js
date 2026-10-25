@@ -62,8 +62,15 @@ class DataFeedManager {
    * Fetch historical candles for a symbol & interval
    */
   async getHistory(symbol, interval, limit = 500) {
+    const token = localStorage.getItem('tradeview_token');
+    if (!token) {
+      // Unauthenticated: lock charts, do not load candles
+      return [];
+    }
     try {
-      const resp = await fetch(`/api/history?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`);
+      const resp = await fetch(`/api/history?symbol=${encodeURIComponent(symbol)}&interval=${interval}&limit=${limit}`, {
+        headers: { 'Authorization': `Bearer ${token}` }
+      });
       const result = await resp.json();
       if (result && result.data && result.data.length > 0) {
         return result.data;

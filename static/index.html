@@ -302,6 +302,10 @@
               <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-[#089981]"></i>
               <span>Save Workspace</span>
             </button>
+            <button id="btn-open-change-pwd" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
+              <i data-lucide="key-round" class="w-3.5 h-3.5 text-amber-400"></i>
+              <span>Change Password</span>
+            </button>
           </div>
           <div class="py-1">
             <button id="btn-profile-logout" class="w-full text-left px-3 py-1.5 text-xs text-[#f23645] hover:bg-[#2a2e39] transition flex items-center space-x-2">
@@ -712,9 +716,7 @@
           <i data-lucide="user-check" class="w-5 h-5 text-[#2962ff]"></i>
           <h3 class="font-bold text-base text-white tracking-wide">Trader Account</h3>
         </div>
-        <button id="btn-close-auth-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
-          <i data-lucide="x" class="w-4 h-4"></i>
-        </button>
+        <!-- Non-dismissible wall: no close button until authenticated -->
       </div>
 
       <!-- Auth Tabs -->
@@ -736,9 +738,7 @@
         <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow-lg mt-2 cursor-pointer">
           Sign In
         </button>
-        <div class="text-[11px] text-[#787b86] text-center pt-1">
-          Default Admin: <b class="text-[#d1d4dc]">admin</b> / <b class="text-[#d1d4dc]">admin123</b>
-        </div>
+
       </form>
 
       <!-- Register Form -->
@@ -762,11 +762,7 @@
 
       <div id="auth-error-msg" class="px-5 pb-2 text-center text-xs"></div>
       
-      <div class="px-5 pb-4 pt-1 text-center border-t border-[#2a2e39]/50">
-        <button type="button" id="btn-guest-continue" class="text-xs text-[#787b86] hover:text-[#d1d4dc] transition underline cursor-pointer">
-          Continue as Guest (explore without signing in)
-        </button>
-      </div>
+
     </div>
   </div>
 
@@ -925,16 +921,51 @@
     </div>
   </div>
 
+  
+  <!-- Change Password Modal -->
+  <div id="change-password-modal" class="hidden fixed inset-0 z-[10005] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="key-round" class="w-4 h-4 text-amber-400"></i>
+          <h4 class="font-bold text-white">Change Account Password</h4>
+        </div>
+        <button id="btn-close-change-pwd-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+      <form id="form-change-password" class="p-5 space-y-3.5">
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Current Password</label>
+          <input type="password" id="change-current-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">New Password</label>
+          <input type="password" id="change-new-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Confirm New Password</label>
+          <input type="password" id="change-confirm-pwd-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div id="change-pwd-status-msg" class="text-center text-xs"></div>
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
+          <button type="button" id="btn-cancel-change-pwd" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow">Update Password</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Application Logic Scripts -->
-  <script src="/static/js/indicators.js?v=2.16"></script>
-  <script src="/static/js/drawings.js?v=2.16"></script>
-  <script src="/static/js/data-feed.js?v=2.16"></script>
-  <script src="/static/js/chart-instance.js?v=2.16"></script>
-  <script src="/static/js/multi-chart-grid.js?v=2.16"></script>
-  <script src="/static/js/watchlist.js?v=2.16"></script>
-  <script src="/static/js/paper-trading.js?v=2.16"></script>
-  <script src="/static/js/orders-manager.js?v=2.16"></script>
-  <script src="/static/js/auth-manager.js?v=2.16"></script>
-  <script src="/static/js/app.js?v=2.16"></script>
+  <script src="/static/js/indicators.js?v=2.17"></script>
+  <script src="/static/js/drawings.js?v=2.17"></script>
+  <script src="/static/js/data-feed.js?v=2.17"></script>
+  <script src="/static/js/chart-instance.js?v=2.17"></script>
+  <script src="/static/js/multi-chart-grid.js?v=2.17"></script>
+  <script src="/static/js/watchlist.js?v=2.17"></script>
+  <script src="/static/js/paper-trading.js?v=2.17"></script>
+  <script src="/static/js/orders-manager.js?v=2.17"></script>
+  <script src="/static/js/auth-manager.js?v=2.17"></script>
+  <script src="/static/js/app.js?v=2.17"></script>
 </body>
 </html>

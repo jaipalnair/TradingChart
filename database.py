@@ -249,6 +249,20 @@ def delete_user(user_id: int):
     conn.commit()
     conn.close()
 
+def change_password(user_id: int, current_password: str, new_password: str) -> bool:
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT password_hash FROM users WHERE id = ?', (user_id,))
+    row = c.fetchone()
+    if not row or not verify_password(current_password, row['password_hash']):
+        conn.close()
+        return False
+    pw_hash = hash_password(new_password)
+    c.execute('UPDATE users SET password_hash = ? WHERE id = ?', (pw_hash, user_id))
+    conn.commit()
+    conn.close()
+    return True
+
 def reset_user_password(user_id: int, new_password: str):
     conn = get_connection()
     c = conn.cursor()

@@ -1273,6 +1273,20 @@ def save_settings(settings: dict, user: dict = Depends(get_current_user)):
     database.save_user_settings(user["id"], settings)
     return {"status": "success", "message": "Settings saved to user profile"}
 
+class ChangePasswordRequest(BaseModel):
+    current_password: str
+    new_password: str
+
+@app.post("/api/user/change-password")
+def user_change_password(req: ChangePasswordRequest, user: dict = Depends(get_current_user)):
+    """Allow current user / admin to change their password."""
+    if not req.new_password or len(req.new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
+    ok = database.change_password(user["id"], req.current_password, req.new_password)
+    if not ok:
+        raise HTTPException(status_code=400, detail="Incorrect current password")
+    return {"status": "success", "message": "Password changed successfully"}
+
 # ================= ADMIN PANEL & TRAFFIC ANALYTICS =================
 
 @app.get("/api/admin/stats")
