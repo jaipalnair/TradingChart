@@ -46,11 +46,48 @@ def init_db():
             id INTEGER PRIMARY KEY AUTOINCREMENT,
             username TEXT UNIQUE NOT NULL COLLATE NOCASE,
             password_hash TEXT NOT NULL,
-            email TEXT,
+            email TEXT NOT NULL,
             role TEXT DEFAULT 'user',
             is_active INTEGER DEFAULT 1,
+            approval_status TEXT DEFAULT 'approved',
+            auth_code TEXT DEFAULT '',
+            approved_at TEXT DEFAULT '',
             created_at TEXT NOT NULL,
             last_login TEXT
+        )
+    ''')
+
+    # Migration: add missing columns if upgrading existing database
+    for col_name, col_type in [
+        ("approval_status", "TEXT DEFAULT 'approved'"),
+        ("auth_code", "TEXT DEFAULT ''"),
+        ("approved_at", "TEXT DEFAULT ''")
+    ]:
+        try:
+            c.execute(f"ALTER TABLE users ADD COLUMN {col_name} {col_type}")
+        except Exception:
+            pass
+
+    # Email logs table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS email_logs (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            recipient TEXT NOT NULL,
+            subject TEXT NOT NULL,
+            body TEXT,
+            email_type TEXT NOT NULL,
+            status TEXT NOT NULL,
+            error_message TEXT,
+            created_at TEXT NOT NULL
+        )
+    ''')
+
+    # System configuration table
+    c.execute('''
+        CREATE TABLE IF NOT EXISTS system_config (
+            key TEXT PRIMARY KEY,
+            value TEXT NOT NULL,
+            updated_at TEXT NOT NULL
         )
     ''')
 
@@ -137,16 +174,169 @@ def init_db():
 
 # ----------------- User Management -----------------
 
-def create_user(username: str, password: str, email: str = "", role: str = "user") -> dict:
+AUTHCODE_ALPHABET = "23456789ABCDEFGHJKMNPQRSTUVWXYZ"
+
+def generate_10char_auth_code() -> str:
+    """Generate a clean 10-character alphanumeric authorization code (mix of numbers and uppercase letters)."""
+    return "".join(secrets.choice(AUTHCODE_ALPHABET) for _ in range(10))
+
+def create_pending_user(username: str, password: str, email: str) -> dict:
+    """Register a new user whose account is pending administrator approval."""
     conn = get_connection()
     c = conn.cursor()
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     pw_hash = hash_password(password)
     try:
         c.execute('''
-            INSERT INTO users (username, password_hash, email, role, is_active, created_at)
-            VALUES (?, ?, ?, ?, 1, ?)
-        ''', (username.strip(), pw_hash, email.strip(), role, now))
+            INSERT INTO users (username, password_hash, email, role, is_active, approval_status, auth_code, created_at)
+            VALUES (?, ?, ?, 'user', 0, 'pending', '', ?)
+        ''', (username.strip(), pw_hash, email.strip(), now))
+        user_id = c.lastrowid
+        default_settings = {
+            "layout": "4g",
+            "theme": "dark",
+            "activeWatchlist": "indices",
+            "indicators": ["supertrend", "vwap", "volume"]
+        }
+        c.execute('''
+            INSERT INTO user_settings (user_id, settings_json, updated_at)
+            VALUES (?, ?, ?)
+        ''', (user_id, json.dumps(default_settings), now))
+        conn.commit()
+        return {
+            "id": user_id,
+            "username": username.strip(),
+            "email": email.strip(),
+            "role": "user",
+            "approval_status": "pending",
+            "created_at": now
+        }
+    finally:
+        conn.close()
+
+def get_pending_users():
+    """Get all registration requests awaiting administrator approval."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT id, username, email, role, approval_status, created_at
+        FROM users
+        WHERE approval_status = 'pending'
+        ORDER BY id DESC
+    ''')
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def approve_user(user_id: int, custom_code: str = None) -> dict:
+    """Approve pending user, generate 10-character auth code, and activate access."""
+    conn = get_connection()
+    c = conn.cursor()
+    code = custom_code.strip().upper() if custom_code else generate_10char_auth_code()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute('''
+        UPDATE users
+        SET approval_status = 'approved',
+            is_active = 1,
+            auth_code = ?,
+            approved_at = ?
+        WHERE id = ?
+    ''', (code, now, user_id))
+    c.execute('SELECT id, username, email, role, approval_status, auth_code, approved_at FROM users WHERE id = ?', (user_id,))
+    row = c.fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row) if row else None
+
+def reject_user(user_id: int) -> dict:
+    """Reject pending user access request."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        UPDATE users
+        SET approval_status = 'rejected',
+            is_active = 0
+        WHERE id = ?
+    ''', (user_id,))
+    c.execute('DELETE FROM user_sessions WHERE user_id = ?', (user_id,))
+    c.execute('SELECT id, username, email, role, approval_status FROM users WHERE id = ?', (user_id,))
+    row = c.fetchone()
+    conn.commit()
+    conn.close()
+    return dict(row) if row else None
+
+def get_user_by_email(email: str):
+    """Check if an email is already registered."""
+    if not email:
+        return None
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username, email FROM users WHERE email = ? COLLATE NOCASE', (email.strip(),))
+    row = c.fetchone()
+    conn.close()
+    return dict(row) if row else None
+
+def log_email(recipient: str, subject: str, body: str, email_type: str, status: str, error_message: str = ""):
+    """Record outgoing email history in database."""
+    conn = get_connection()
+    c = conn.cursor()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute('''
+        INSERT INTO email_logs (recipient, subject, body, email_type, status, error_message, created_at)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (recipient, subject, body, email_type, status, error_message, now))
+    conn.commit()
+    conn.close()
+
+def get_email_logs(limit: int = 50):
+    """Get recent email history logs."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('''
+        SELECT id, recipient, subject, email_type, status, error_message, created_at
+        FROM email_logs
+        ORDER BY id DESC
+        LIMIT ?
+    ''', (limit,))
+    rows = [dict(r) for r in c.fetchall()]
+    conn.close()
+    return rows
+
+def get_config(key: str, default: str = "") -> str:
+    """Retrieve persistent platform configuration setting."""
+    conn = get_connection()
+    c = conn.cursor()
+    c.execute('SELECT value FROM system_config WHERE key = ?', (key,))
+    row = c.fetchone()
+    conn.close()
+    return row['value'] if row else default
+
+def set_config(key: str, value: str):
+    """Store persistent platform configuration setting."""
+    conn = get_connection()
+    c = conn.cursor()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    c.execute('''
+        INSERT INTO system_config (key, value, updated_at)
+        VALUES (?, ?, ?)
+        ON CONFLICT(key) DO UPDATE SET value = excluded.value, updated_at = excluded.updated_at
+    ''', (key, value, now))
+    conn.commit()
+    conn.close()
+
+
+def create_user(username: str, password: str, email: str, role: str = "user") -> dict:
+    """Create pre-approved user account manually by admin, with 10-char authorization code."""
+    conn = get_connection()
+    c = conn.cursor()
+    now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    pw_hash = hash_password(password)
+    code = generate_10char_auth_code() if role != 'admin' else ''
+    try:
+        c.execute('''
+            INSERT INTO users (username, password_hash, email, role, is_active, approval_status, auth_code, approved_at, created_at)
+            VALUES (?, ?, ?, ?, 1, 'approved', ?, ?, ?)
+        ''', (username.strip(), pw_hash, email.strip(), role, code, now, now))
         user_id = c.lastrowid
         # default settings
         default_settings = {
@@ -160,11 +350,19 @@ def create_user(username: str, password: str, email: str = "", role: str = "user
             VALUES (?, ?, ?)
         ''', (user_id, json.dumps(default_settings), now))
         conn.commit()
-        return {"id": user_id, "username": username, "email": email, "role": role, "created_at": now}
+        return {
+            "id": user_id,
+            "username": username.strip(),
+            "email": email.strip(),
+            "role": role,
+            "approval_status": "approved",
+            "auth_code": code,
+            "created_at": now
+        }
     finally:
         conn.close()
 
-def authenticate_user(username: str, password: str):
+def authenticate_user(username: str, password: str, auth_code: str = ""):
     conn = get_connection()
     c = conn.cursor()
     c.execute('SELECT * FROM users WHERE username = ? COLLATE NOCASE', (username.strip(),))
@@ -172,12 +370,31 @@ def authenticate_user(username: str, password: str):
     if not user:
         conn.close()
         return None
-    if not user['is_active']:
-        conn.close()
-        return "INACTIVE"
     if not verify_password(password, user['password_hash']):
         conn.close()
         return None
+
+    user_keys = user.keys()
+    app_status = user['approval_status'] if 'approval_status' in user_keys else 'approved'
+    if app_status == 'pending':
+        conn.close()
+        return "PENDING"
+    if app_status == 'rejected':
+        conn.close()
+        return "REJECTED"
+    if not user['is_active']:
+        conn.close()
+        return "INACTIVE"
+
+    # Enforce 10-char authorization code for non-admin users if user has an auth_code
+    user_auth_code = user['auth_code'] if 'auth_code' in user_keys else ''
+    if user['role'] != 'admin' and user_auth_code:
+        if not auth_code or not auth_code.strip():
+            conn.close()
+            return "CODE_REQUIRED"
+        if auth_code.strip().upper() != user_auth_code.upper():
+            conn.close()
+            return "INVALID_CODE"
 
     now = datetime.now(timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     c.execute('UPDATE users SET last_login = ? WHERE id = ?', (now, user['id']))
@@ -222,7 +439,7 @@ def list_all_users():
     conn = get_connection()
     c = conn.cursor()
     c.execute('''
-        SELECT id, username, email, role, is_active, created_at, last_login
+        SELECT id, username, email, role, is_active, approval_status, auth_code, approved_at, created_at, last_login
         FROM users
         ORDER BY id DESC
     ''')

@@ -118,6 +118,11 @@ class AuthManager {
       e.preventDefault();
       this.handleAdminCreateUser();
     });
+
+    // SMTP & Email Panel Listeners
+    document.getElementById('btn-save-smtp-config')?.addEventListener('click', () => this.saveSmtpConfig());
+    document.getElementById('btn-send-test-email')?.addEventListener('click', () => this.sendTestEmail());
+    document.getElementById('btn-refresh-email-logs')?.addEventListener('click', () => this.loadEmailLogs());
   }
 
   async fetchCurrentUser() {
@@ -220,6 +225,7 @@ class AuthManager {
   async handleLogin() {
     const username = document.getElementById('login-username-input')?.value.trim();
     const password = document.getElementById('login-password-input')?.value;
+    const auth_code = document.getElementById('login-authcode-input')?.value.trim().toUpperCase() || '';
     const msgEl = document.getElementById('auth-error-msg');
 
     try {
@@ -231,7 +237,7 @@ class AuthManager {
       const res = await fetch('/api/auth/login', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ username, password })
+        body: JSON.stringify({ username, password, auth_code })
       });
 
       const data = await res.json();
@@ -270,10 +276,18 @@ class AuthManager {
     const email = document.getElementById('register-email-input')?.value.trim();
     const msgEl = document.getElementById('auth-error-msg');
 
+    if (!email) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645] font-semibold';
+        msgEl.textContent = '✕ Email address is required';
+      }
+      return;
+    }
+
     try {
       if (msgEl) {
         msgEl.className = 'text-xs text-[#2962ff] animate-pulse';
-        msgEl.textContent = 'Creating account...';
+        msgEl.textContent = 'Submitting registration for approval...';
       }
 
       const res = await fetch('/api/auth/register', {
@@ -287,11 +301,29 @@ class AuthManager {
         throw new Error(data.detail || 'Registration failed');
       }
 
-      this.token = data.token;
-      this.currentUser = data.user;
-      localStorage.setItem('tradeview_token', this.token);
-      this.updateHeaderUI();
-      this.closeAuthModal();
+      if (data.status === 'pending_approval') {
+        if (msgEl) {
+          msgEl.className = 'text-xs text-amber-400 font-semibold p-3 rounded-lg bg-amber-500/10 border border-amber-500/30 leading-relaxed';
+          msgEl.innerHTML = `<b>✓ Registration Submitted!</b><br>An intimation has been sent to the administrator (jaipal.nair@gmail.com). Once approved, your 10-character authorization code will be emailed to <b>${email}</b>.`;
+        }
+        // Reset fields
+        const uIn = document.getElementById('register-username-input');
+        const pIn = document.getElementById('register-password-input');
+        const eIn = document.getElementById('register-email-input');
+        if (uIn) uIn.value = '';
+        if (pIn) pIn.value = '';
+        if (eIn) eIn.value = '';
+        return;
+      }
+
+      // If pre-approved
+      if (data.token) {
+        this.token = data.token;
+        this.currentUser = data.user;
+        localStorage.setItem('tradeview_token', this.token);
+        this.updateHeaderUI();
+        this.closeAuthModal();
+      }
 
     } catch (e) {
       if (msgEl) {
@@ -410,22 +442,31 @@ class AuthManager {
       }
     });
 
-    ['admin-tab-users-content', 'admin-tab-activity-content', 'admin-tab-endpoints-content'].forEach(id => {
+    ['admin-tab-users-content', 'admin-tab-approvals-content', 'admin-tab-activity-content', 'admin-tab-endpoints-content', 'admin-tab-smtp-content'].forEach(id => {
       document.getElementById(id)?.classList.add('hidden');
     });
 
     if (tab === 'users') {
       document.getElementById('admin-tab-users-content')?.classList.remove('hidden');
+    } else if (tab === 'approvals') {
+      document.getElementById('admin-tab-approvals-content')?.classList.remove('hidden');
+      this.loadPendingUsers();
     } else if (tab === 'activity') {
       document.getElementById('admin-tab-activity-content')?.classList.remove('hidden');
     } else if (tab === 'endpoints') {
       document.getElementById('admin-tab-endpoints-content')?.classList.remove('hidden');
+    } else if (tab === 'smtp') {
+      document.getElementById('admin-tab-smtp-content')?.classList.remove('hidden');
+      this.loadSmtpConfig();
+      this.loadEmailLogs();
     }
+    if (window.lucide) window.lucide.createIcons();
   }
 
   async loadAdminData() {
     try {
       // 1. Stats
+      await this.loadPendingUsers();
       const statsRes = await fetch('/api/admin/stats', { headers: this.getAuthHeaders() });
       if (statsRes.ok) {
         const statsData = await statsRes.json();
@@ -456,6 +497,15 @@ class AuthManager {
           tbody.innerHTML = (usersData.users || []).map(u => {
             const isAdmin = u.role === 'admin';
             const isActive = !!u.is_active;
+            const authCodeHtml = u.auth_code ? `
+              <div class="flex items-center space-x-1">
+                <span class="font-mono text-amber-400 font-bold bg-amber-400/10 px-1.5 py-0.5 rounded border border-amber-400/20 text-[11px]">${u.auth_code}</span>
+                <button onclick="window.authManager.copyToClipboard('${u.auth_code}')" class="p-1 hover:text-white text-[#787b86]" title="Copy Auth Code">
+                  <i data-lucide="copy" class="w-3 h-3"></i>
+                </button>
+              </div>
+            ` : '<span class="text-[#787b86]">—</span>';
+
             return `
               <tr class="border-b border-[#2a2e39]/50 hover:bg-[#1e222d]/60 font-mono text-xs">
                 <td class="py-2.5 px-3 text-white font-bold">${u.id}</td>
@@ -471,8 +521,8 @@ class AuthManager {
                     ${u.role.toUpperCase()}
                   </span>
                 </td>
+                <td class="py-2.5 px-3">${authCodeHtml}</td>
                 <td class="py-2.5 px-3 text-[#787b86] text-[11px]">${u.created_at}</td>
-                <td class="py-2.5 px-3 text-[#787b86] text-[11px]">${u.last_login || 'Never'}</td>
                 <td class="py-2.5 px-3">
                   <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isActive ? 'bg-[#089981]/20 text-[#089981]' : 'bg-[#f23645]/20 text-[#f23645]'}">
                     ${isActive ? 'ACTIVE' : 'DISABLED'}
@@ -480,6 +530,11 @@ class AuthManager {
                 </td>
                 <td class="py-2.5 px-3 text-right">
                   <div class="flex items-center justify-end space-x-1.5">
+                    ${!isAdmin ? `
+                      <button onclick="window.authManager.resendAuthCode(${u.id})" class="px-2 py-1 rounded text-[11px] font-semibold bg-[#2962ff]/20 hover:bg-[#2962ff] text-[#2962ff] hover:text-white transition" title="Resend Code Email">
+                        Resend Code
+                      </button>
+                    ` : ''}
                     <button class="btn-admin-toggle-user px-2 py-1 rounded text-[11px] font-semibold bg-[#2a2e39] hover:bg-[#2962ff] text-white transition" data-id="${u.id}" data-active="${isActive}">
                       ${isActive ? 'Disable' : 'Enable'}
                     </button>
@@ -736,6 +791,290 @@ class AuthManager {
       }
     }
   }
+
+  // ----------------- User Approvals & Authorization -----------------
+
+  async loadPendingUsers() {
+    try {
+      const res = await fetch('/api/admin/pending-users', { headers: this.getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const pending = data.pending_users || [];
+      const badge = document.getElementById('admin-pending-count-badge');
+      if (badge) {
+        badge.textContent = pending.length;
+        if (pending.length > 0) {
+          badge.classList.remove('hidden');
+        } else {
+          badge.classList.add('hidden');
+        }
+      }
+
+      const tbody = document.getElementById('admin-pending-table-body');
+      const emptyMsg = document.getElementById('admin-pending-empty-msg');
+      if (!tbody) return;
+
+      if (pending.length === 0) {
+        tbody.innerHTML = '';
+        if (emptyMsg) emptyMsg.classList.remove('hidden');
+        return;
+      }
+
+      if (emptyMsg) emptyMsg.classList.add('hidden');
+      tbody.innerHTML = pending.map(u => `
+        <tr class="border-b border-[#2a2e39]/50 hover:bg-[#1e222d]/60 font-mono text-xs">
+          <td class="py-2.5 px-3 text-white font-bold">${u.id}</td>
+          <td class="py-2.5 px-3 text-white font-semibold">
+            <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 font-bold">${u.username}</span>
+          </td>
+          <td class="py-2.5 px-3 text-[#2962ff] font-semibold">${u.email}</td>
+          <td class="py-2.5 px-3 text-[#787b86] text-[11px]">${u.created_at}</td>
+          <td class="py-2.5 px-3">
+            <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
+              PENDING APPROVAL
+            </span>
+          </td>
+          <td class="py-2.5 px-3 text-right">
+            <div class="flex items-center justify-end space-x-2">
+              <button onclick="window.authManager.approvePendingUser(${u.id}, '${u.username}', '${u.email}')" class="px-3 py-1 rounded text-xs font-semibold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow flex items-center space-x-1">
+                <i data-lucide="check" class="w-3.5 h-3.5"></i>
+                <span>Approve & Send Code</span>
+              </button>
+              <button onclick="window.authManager.rejectPendingUser(${u.id}, '${u.username}')" class="px-2.5 py-1 rounded text-xs font-semibold bg-[#2a2e39] hover:bg-[#f23645] text-[#787b86] hover:text-white transition">
+                Reject
+              </button>
+            </div>
+          </td>
+        </tr>
+      `).join('');
+
+      if (window.lucide) window.lucide.createIcons();
+    } catch (e) {
+      console.warn('Error loading pending users:', e);
+    }
+  }
+
+  async approvePendingUser(userId, username, email) {
+    if (!confirm(`Authorize user '${username}' (${email})?\nThis will generate a 10-character code and email it to them.`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/approve`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || 'Approval failed');
+        return;
+      }
+      alert(`✓ User '${username}' approved!\n\n10-Character Authorization Code: ${data.auth_code}\n\nSent to: ${email}`);
+      await this.loadAdminData();
+      await this.loadPendingUsers();
+    } catch (e) {
+      alert(`Error approving user: ${e.message}`);
+    }
+  }
+
+  async rejectPendingUser(userId, username) {
+    if (!confirm(`Are you sure you want to decline registration for '${username}'?`)) {
+      return;
+    }
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/reject`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || 'Reject failed');
+        return;
+      }
+      alert(`User registration for '${username}' was declined.`);
+      await this.loadAdminData();
+      await this.loadPendingUsers();
+    } catch (e) {
+      alert(`Error rejecting user: ${e.message}`);
+    }
+  }
+
+  async resendAuthCode(userId) {
+    try {
+      const res = await fetch(`/api/admin/users/${userId}/resend-code`, {
+        method: 'POST',
+        headers: this.getAuthHeaders()
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        alert(data.detail || 'Failed to resend authorization code');
+        return;
+      }
+      alert(`✓ ${data.message}\nCode: ${data.auth_code}`);
+    } catch (e) {
+      alert(`Error resending code: ${e.message}`);
+    }
+  }
+
+  copyToClipboard(text) {
+    if (navigator.clipboard) {
+      navigator.clipboard.writeText(text);
+      alert(`Copied authorization code: ${text}`);
+    } else {
+      prompt('Copy Authorization Code:', text);
+    }
+  }
+
+  // ----------------- SMTP & Email Management -----------------
+
+  async loadSmtpConfig() {
+    try {
+      const res = await fetch('/api/admin/smtp-config', { headers: this.getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const cfg = data.config;
+
+      const ind = document.getElementById('smtp-status-indicator');
+      if (ind) {
+        if (cfg.is_configured) {
+          ind.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-emerald-500/20 text-emerald-400 border border-emerald-500/30';
+          ind.textContent = 'Active (Ready)';
+        } else {
+          ind.className = 'text-[11px] font-mono px-2 py-0.5 rounded bg-amber-500/20 text-amber-400 border border-amber-500/30';
+          ind.textContent = 'App Password Needed';
+        }
+      }
+
+      const hostIn = document.getElementById('smtp-host-input');
+      const portIn = document.getElementById('smtp-port-input');
+      const userIn = document.getElementById('smtp-user-input');
+      const adminIn = document.getElementById('smtp-admin-email-input');
+
+      if (hostIn && cfg.host) hostIn.value = cfg.host;
+      if (portIn && cfg.port) portIn.value = cfg.port;
+      if (userIn && cfg.user) userIn.value = cfg.user;
+      if (adminIn && cfg.admin_email) adminIn.value = cfg.admin_email;
+    } catch (e) {
+      console.warn('Error loading SMTP config:', e);
+    }
+  }
+
+  async saveSmtpConfig() {
+    const statusEl = document.getElementById('smtp-save-status');
+    const host = document.getElementById('smtp-host-input')?.value;
+    const port = document.getElementById('smtp-port-input')?.value;
+    const user = document.getElementById('smtp-user-input')?.value;
+    const pwd = document.getElementById('smtp-password-input')?.value;
+    const adminEmail = document.getElementById('smtp-admin-email-input')?.value;
+
+    try {
+      if (statusEl) {
+        statusEl.className = 'text-xs text-[#2962ff] animate-pulse';
+        statusEl.textContent = 'Saving settings...';
+      }
+
+      const payload = {
+        smtp_host: host,
+        smtp_port: port,
+        smtp_user: user,
+        admin_email: adminEmail
+      };
+      if (pwd) payload.smtp_password = pwd;
+
+      const res = await fetch('/api/admin/smtp-config', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Save failed');
+
+      if (statusEl) {
+        statusEl.className = 'text-xs text-emerald-400 font-semibold';
+        statusEl.textContent = '✓ Saved successfully!';
+        setTimeout(() => { statusEl.textContent = ''; }, 2500);
+      }
+      await this.loadSmtpConfig();
+    } catch (e) {
+      if (statusEl) {
+        statusEl.className = 'text-xs text-[#f23645] font-semibold';
+        statusEl.textContent = `✕ ${e.message}`;
+      }
+    }
+  }
+
+  async sendTestEmail() {
+    const target = document.getElementById('smtp-test-target-input')?.value.trim();
+    const msgEl = document.getElementById('smtp-test-result-msg');
+    if (!target) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645]';
+        msgEl.textContent = 'Please provide target email';
+      }
+      return;
+    }
+
+    try {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-emerald-400 animate-pulse';
+        msgEl.textContent = 'Dispatching test email...';
+      }
+
+      const res = await fetch('/api/admin/send-test-email', {
+        method: 'POST',
+        headers: this.getAuthHeaders(),
+        body: JSON.stringify({ email: target })
+      });
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.detail || 'Email test failed');
+
+      if (msgEl) {
+        msgEl.className = 'text-xs text-emerald-400 font-semibold';
+        msgEl.textContent = `✓ ${data.message}`;
+      }
+      await this.loadEmailLogs();
+    } catch (e) {
+      if (msgEl) {
+        msgEl.className = 'text-xs text-[#f23645] font-semibold';
+        msgEl.textContent = `✕ ${e.message}`;
+      }
+    }
+  }
+
+  async loadEmailLogs() {
+    try {
+      const res = await fetch('/api/admin/email-logs?limit=30', { headers: this.getAuthHeaders() });
+      if (!res.ok) return;
+      const data = await res.json();
+      const logs = data.logs || [];
+      const tbody = document.getElementById('admin-email-logs-table-body');
+      if (!tbody) return;
+
+      if (logs.length === 0) {
+        tbody.innerHTML = '<tr><td colspan="5" class="py-4 text-center text-[#787b86]">No emails logged yet.</td></tr>';
+        return;
+      }
+
+      tbody.innerHTML = logs.map(l => {
+        const isSent = l.status === 'sent';
+        return `
+          <tr class="hover:bg-[#1e222d]/60">
+            <td class="py-2 px-3 text-[#787b86]">${l.created_at}</td>
+            <td class="py-2 px-3 text-white">${l.recipient}</td>
+            <td class="py-2 px-3"><span class="px-1.5 py-0.5 rounded text-[10px] bg-[#2a2e39] text-[#d1d4dc]">${l.email_type}</span></td>
+            <td class="py-2 px-3 text-[#d1d4dc]">${l.subject}</td>
+            <td class="py-2 px-3">
+              <span class="px-1.5 py-0.5 rounded text-[10px] font-bold ${isSent ? 'bg-emerald-500/20 text-emerald-400' : 'bg-amber-500/20 text-amber-400'}">
+                ${l.status.toUpperCase()}
+              </span>
+            </td>
+          </tr>
+        `;
+      }).join('');
+    } catch (e) {
+      console.warn('Error loading email logs:', e);
+    }
+  }
+
 }
 
 // Global initialization

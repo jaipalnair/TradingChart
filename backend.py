@@ -9,6 +9,8 @@ import json
 import time
 import math
 import random
+import re
+import email_service
 from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from pathlib import Path
@@ -1155,17 +1157,31 @@ def cancel_dhan_order(order_id: str):
 class LoginRequest(BaseModel):
     username: str
     password: str
+    auth_code: Optional[str] = ""
 
 class RegisterRequest(BaseModel):
     username: str
     password: str
-    email: Optional[str] = ""
+    email: str
 
 class CreateUserRequest(BaseModel):
     username: str
     password: str
-    email: Optional[str] = ""
+    email: str
     role: str = "user"
+
+class ApproveUserRequest(BaseModel):
+    auth_code: Optional[str] = None
+
+class SmtpConfigRequest(BaseModel):
+    smtp_host: Optional[str] = None
+    smtp_port: Optional[str] = None
+    smtp_user: Optional[str] = None
+    smtp_password: Optional[str] = None
+    admin_email: Optional[str] = None
+
+class TestEmailRequest(BaseModel):
+    email: str
 
 class UserStatusRequest(BaseModel):
     is_active: bool
@@ -1195,40 +1211,80 @@ def get_admin_user(authorization: Optional[str] = Header(None)):
 
 @app.post("/api/auth/register")
 def register(req: RegisterRequest):
-    """Register a new user account."""
+    """Register a new user account with mandatory email and pending approval."""
     if not req.username or len(req.username.strip()) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
     if not req.password or len(req.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
 
+    # 1. Email is NOT optional
+    email = req.email.strip() if req.email else ""
+    if not email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="A valid email address is required (e.g. name@example.com)")
+
+    # Check if email is already taken
+    existing_email_user = database.get_user_by_email(email)
+    if existing_email_user:
+        raise HTTPException(status_code=400, detail="This email address is already registered")
+
     try:
-        user = database.create_user(
+        user = database.create_pending_user(
             username=req.username.strip(),
             password=req.password,
-            email=req.email.strip() if req.email else "",
-            role="user"
+            email=email
         )
-        # Automatically authenticate
-        auth = database.authenticate_user(req.username.strip(), req.password)
+
+        # Send intimation email to jaipal.nair@gmail.com
+        import email_service
+        email_service.notify_admin_new_user_registration(user["username"], user["email"])
+
         return {
-            "status": "success",
-            "message": "Account created successfully",
-            "user": auth,
-            "token": auth["token"]
+            "status": "pending_approval",
+            "message": "Registration submitted! Your account is pending administrator approval. An intimation has been sent to the administrator. Once authorized, you will receive a 10-character code at your email.",
+            "user": {
+                "id": user["id"],
+                "username": user["username"],
+                "email": user["email"],
+                "approval_status": "pending"
+            }
         }
     except Exception as e:
-        if "UNIQUE constraint failed" in str(e):
+        if "UNIQUE constraint failed: users.username" in str(e):
             raise HTTPException(status_code=400, detail="Username already taken")
         raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
 
 @app.post("/api/auth/login")
 def login(req: LoginRequest):
-    """Authenticate username and password."""
-    auth = database.authenticate_user(req.username, req.password)
+    """Authenticate username, password, and 10-character authorization code."""
+    auth = database.authenticate_user(req.username, req.password, auth_code=req.auth_code or "")
+    if auth == "PENDING":
+        raise HTTPException(
+            status_code=403,
+            detail="Your account is pending administrator approval. You will receive an email with your 10-character authorization code once approved."
+        )
+    if auth == "REJECTED":
+        raise HTTPException(
+            status_code=403,
+            detail="Your registration request was declined by the administrator."
+        )
     if auth == "INACTIVE":
-        raise HTTPException(status_code=403, detail="Your account has been deactivated by administrator.")
+        raise HTTPException(
+            status_code=403,
+            detail="Your account has been deactivated by administrator."
+        )
+    if auth == "CODE_REQUIRED":
+        raise HTTPException(
+            status_code=400,
+            detail="A 10-character authorization code is required for your account. Please enter the code sent to your email upon approval."
+        )
+    if auth == "INVALID_CODE":
+        raise HTTPException(
+            status_code=400,
+            detail="Invalid 10-character authorization code. Please verify the code sent to your email."
+        )
     if not auth:
         raise HTTPException(status_code=401, detail="Invalid username or password")
+
     return {
         "status": "success",
         "user": {
@@ -1236,6 +1292,7 @@ def login(req: LoginRequest):
             "username": auth["username"],
             "email": auth["email"],
             "role": auth["role"],
+            "approval_status": auth.get("approval_status", "approved"),
             "last_login": auth["last_login"]
         },
         "token": auth["token"]
@@ -1303,22 +1360,37 @@ def get_admin_users_list(admin: dict = Depends(get_admin_user)):
 
 @app.post("/api/admin/users")
 def admin_create_user(req: CreateUserRequest, admin: dict = Depends(get_admin_user)):
-    """Create a user account manually (for giving friends access)."""
+    """Create a user account manually (pre-approved with 10-char authorization code)."""
     if not req.username or len(req.username.strip()) < 3:
         raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
     if not req.password or len(req.password) < 4:
         raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
 
+    email = req.email.strip() if req.email else ""
+    if not email or not re.match(r"^[^@\s]+@[^@\s]+\.[^@\s]+$", email):
+        raise HTTPException(status_code=400, detail="A valid email address is required (e.g. user@example.com)")
+
+    existing_email_user = database.get_user_by_email(email)
+    if existing_email_user:
+        raise HTTPException(status_code=400, detail="This email address is already registered")
+
     try:
         user = database.create_user(
             username=req.username.strip(),
             password=req.password,
-            email=req.email.strip() if req.email else "",
+            email=email,
             role=req.role if req.role in ["user", "admin"] else "user"
         )
-        return {"status": "success", "message": f"User '{req.username}' created", "user": user}
+        if user.get("auth_code"):
+            import email_service
+            email_service.send_user_approval_code_email(
+                username=user["username"],
+                user_email=user["email"],
+                auth_code=user["auth_code"]
+            )
+        return {"status": "success", "message": f"User '{req.username}' created and authorization code emailed", "user": user}
     except Exception as e:
-        if "UNIQUE constraint failed" in str(e):
+        if "UNIQUE constraint failed: users.username" in str(e):
             raise HTTPException(status_code=400, detail="Username already exists")
         raise HTTPException(status_code=400, detail=str(e))
 
@@ -1352,6 +1424,111 @@ def get_admin_recent_activity(limit: int = 50, admin: dict = Depends(get_admin_u
     """View recent traffic requests, IP addresses, and user activity."""
     logs = database.get_recent_activity(limit=limit)
     return {"status": "success", "activity": logs}
+
+
+
+@app.get("/api/admin/pending-users")
+def get_admin_pending_users(admin: dict = Depends(get_admin_user)):
+    """List all user registration requests awaiting admin approval."""
+    pending = database.get_pending_users()
+    return {"status": "success", "pending_users": pending, "count": len(pending)}
+
+@app.post("/api/admin/users/{user_id}/approve")
+def admin_approve_user(user_id: int, req: ApproveUserRequest = None, admin: dict = Depends(get_admin_user)):
+    """Approve a pending user, generate 10-character auth code, and email it to the user."""
+    custom_code = req.auth_code if req and req.auth_code else None
+    approved_user = database.approve_user(user_id, custom_code=custom_code)
+    if not approved_user:
+        raise HTTPException(status_code=404, detail="User not found")
+
+    import email_service
+    email_service.send_user_approval_code_email(
+        username=approved_user["username"],
+        user_email=approved_user["email"],
+        auth_code=approved_user["auth_code"]
+    )
+
+    return {
+        "status": "success",
+        "message": f"User '{approved_user['username']}' approved! Authorization code sent to {approved_user['email']}",
+        "user": approved_user,
+        "auth_code": approved_user["auth_code"]
+    }
+
+@app.post("/api/admin/users/{user_id}/reject")
+def admin_reject_user(user_id: int, admin: dict = Depends(get_admin_user)):
+    """Reject a pending registration request."""
+    rejected_user = database.reject_user(user_id)
+    if not rejected_user:
+        raise HTTPException(status_code=404, detail="User not found")
+    return {"status": "success", "message": f"User registration for '{rejected_user['username']}' declined"}
+
+@app.post("/api/admin/users/{user_id}/resend-code")
+def admin_resend_code(user_id: int, admin: dict = Depends(get_admin_user)):
+    """Resend 10-character authorization code to an approved user's email."""
+    conn = database.get_connection()
+    c = conn.cursor()
+    c.execute('SELECT id, username, email, auth_code, approval_status FROM users WHERE id = ?', (user_id,))
+    row = c.fetchone()
+    conn.close()
+    if not row:
+        raise HTTPException(status_code=404, detail="User not found")
+    user = dict(row)
+    if not user.get("auth_code"):
+        code = database.generate_10char_auth_code()
+        database.approve_user(user_id, custom_code=code)
+        user["auth_code"] = code
+
+    import email_service
+    email_service.send_user_approval_code_email(
+        username=user["username"],
+        user_email=user["email"],
+        auth_code=user["auth_code"]
+    )
+    return {"status": "success", "message": f"Authorization code resent to {user['email']}", "auth_code": user["auth_code"]}
+
+@app.get("/api/admin/email-logs")
+def get_admin_email_logs(limit: int = 50, admin: dict = Depends(get_admin_user)):
+    """View recent email dispatch history and status."""
+    logs = database.get_email_logs(limit=limit)
+    return {"status": "success", "logs": logs}
+
+@app.get("/api/admin/smtp-config")
+def get_admin_smtp_config(admin: dict = Depends(get_admin_user)):
+    """Get current SMTP configuration status (masks password)."""
+    import email_service
+    cfg = email_service.get_smtp_config()
+    return {
+        "status": "success",
+        "config": {
+            "host": cfg["host"],
+            "port": cfg["port"],
+            "user": cfg["user"],
+            "admin_email": cfg["admin_email"],
+            "site_url": cfg["site_url"],
+            "is_configured": cfg["is_configured"],
+            "has_password": bool(cfg["password"])
+        }
+    }
+
+@app.post("/api/admin/smtp-config")
+def save_admin_smtp_config(req: SmtpConfigRequest, admin: dict = Depends(get_admin_user)):
+    """Save persistent SMTP credentials in database."""
+    if req.smtp_host is not None: database.set_config("smtp_host", req.smtp_host.strip())
+    if req.smtp_port is not None: database.set_config("smtp_port", str(req.smtp_port).strip())
+    if req.smtp_user is not None: database.set_config("smtp_user", req.smtp_user.strip())
+    if req.smtp_password is not None and req.smtp_password.strip(): database.set_config("smtp_password", req.smtp_password.strip())
+    if req.admin_email is not None: database.set_config("admin_email", req.admin_email.strip())
+    return {"status": "success", "message": "SMTP settings saved successfully"}
+
+@app.post("/api/admin/send-test-email")
+def admin_send_test_email(req: TestEmailRequest, admin: dict = Depends(get_admin_user)):
+    """Send a live test email to verify SMTP configuration."""
+    import email_service
+    ok, msg = email_service.send_test_email(req.email.strip())
+    if not ok:
+        raise HTTPException(status_code=500, detail=f"Failed to send email: {msg}")
+    return {"status": "success", "message": f"Test email sent successfully to {req.email}"}
 
 
 # ================= STATIC & ROOT =================
