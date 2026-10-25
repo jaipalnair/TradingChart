@@ -21,6 +21,11 @@ class AuthManager {
 
     if (this.token) {
       await this.fetchCurrentUser();
+      if (this.currentUser && this.currentUser.role === 'admin') {
+        this.checkAdminNotifications();
+        // Periodically check for new user access requests
+        setInterval(() => this.checkAdminNotifications(), 8000);
+      }
     } else {
       this.updateHeaderUI();
       // Enforce strict authentication wall: charts will not work until user is signed in
@@ -523,7 +528,14 @@ class AuthManager {
                     <span>${u.username}</span>
                   </div>
                 </td>
-                <td class="py-2.5 px-3 text-[#787b86]">${u.email || '—'}</td>
+                <td class="py-2.5 px-3">
+                  ${u.email && u.email !== 'admin@tradingview.local' ? `
+                    <div class="inline-flex items-center space-x-1.5 px-2 py-0.5 rounded bg-[#181b24] border border-[#2a2e39] hover:border-[#2962ff] cursor-pointer group transition" onclick="window.authManager.copyToClipboard('${u.email}', 'Copied email: ${u.email}')" title="Click to copy email">
+                      <span class="text-[#d1d4dc] group-hover:text-white font-mono text-[11px]">${u.email}</span>
+                      <i data-lucide="copy" class="w-3 h-3 text-[#787b86] group-hover:text-white transition"></i>
+                    </div>
+                  ` : `<span class="text-[#787b86] font-mono text-[11px]">${u.email || '—'}</span>`}
+                </td>
                 <td class="py-2.5 px-3">
                   <span class="px-2 py-0.5 rounded text-[10px] font-bold ${isAdmin ? 'bg-purple-600/20 text-purple-400 border border-purple-500/30' : 'bg-[#2962ff]/20 text-[#2962ff] border border-[#2962ff]/30'}">
                     ${u.role.toUpperCase()}
@@ -806,6 +818,8 @@ class AuthManager {
     if (!this.currentUser || this.currentUser.role !== 'admin') {
       document.getElementById('header-admin-notification')?.classList.add('hidden');
       document.getElementById('admin-pending-alert-banner')?.classList.add('hidden');
+      document.getElementById('btn-top-admin')?.classList.remove('admin-alert-flash');
+      document.getElementById('header-username')?.classList.remove('admin-name-flash');
       return;
     }
 
@@ -815,36 +829,42 @@ class AuthManager {
       const data = await res.json();
       const count = (data.pending_users || []).length;
 
+      const adminBtn = document.getElementById('btn-top-admin');
+      const adminName = document.getElementById('header-username');
       const headerBadge = document.getElementById('header-admin-notification');
-      if (headerBadge) {
-        if (count > 0) {
+      const banner = document.getElementById('admin-pending-alert-banner');
+      const bannerText = document.getElementById('admin-pending-alert-text');
+      const tabBadge = document.getElementById('admin-pending-count-badge');
+
+      if (count > 0) {
+        // Flash Admin button and Admin name!
+        adminBtn?.classList.add('admin-alert-flash');
+        adminName?.classList.add('admin-name-flash');
+        if (adminName) adminName.textContent = `admin (${count})`;
+        if (adminBtn) adminBtn.title = `Admin Control Center - ${count} user request(s) awaiting your approval!`;
+
+        if (headerBadge) {
           headerBadge.textContent = count;
           headerBadge.title = `${count} user request(s) awaiting approval`;
           headerBadge.classList.remove('hidden');
-        } else {
-          headerBadge.classList.add('hidden');
         }
-      }
-
-      const banner = document.getElementById('admin-pending-alert-banner');
-      const bannerText = document.getElementById('admin-pending-alert-text');
-      if (banner) {
-        if (count > 0) {
+        if (banner) {
           if (bannerText) bannerText.textContent = `${count} user registration request(s) awaiting your authorization.`;
           banner.classList.remove('hidden');
-        } else {
-          banner.classList.add('hidden');
         }
-      }
-
-      const tabBadge = document.getElementById('admin-pending-count-badge');
-      if (tabBadge) {
-        if (count > 0) {
+        if (tabBadge) {
           tabBadge.textContent = count;
           tabBadge.classList.remove('hidden');
-        } else {
-          tabBadge.classList.add('hidden');
         }
+      } else {
+        adminBtn?.classList.remove('admin-alert-flash');
+        adminName?.classList.remove('admin-name-flash');
+        if (adminName) adminName.textContent = 'admin';
+        if (adminBtn) adminBtn.title = 'Admin Control Center & Traffic Analytics';
+
+        headerBadge?.classList.add('hidden');
+        banner?.classList.add('hidden');
+        tabBadge?.classList.add('hidden');
       }
     } catch (e) {
       console.warn('Error checking admin notifications:', e);
@@ -879,7 +899,14 @@ class AuthManager {
           <td class="py-2.5 px-3 text-white font-semibold">
             <span class="px-2 py-0.5 rounded bg-amber-500/10 text-amber-300 font-bold">${u.username}</span>
           </td>
-          <td class="py-2.5 px-3 text-[#2962ff] font-semibold">${u.email || '—'}</td>
+          <td class="py-2.5 px-3">
+            ${u.email ? `
+              <div class="inline-flex items-center space-x-1.5 px-2 py-1 rounded bg-[#181b24] border border-[#2a2e39] hover:border-[#2962ff] cursor-pointer group transition" onclick="window.authManager.copyToClipboard('${u.email}', 'Copied email: ${u.email}')" title="Click to copy client email">
+                <span class="text-[#2962ff] group-hover:text-[#5d8aff] font-mono text-xs font-semibold">${u.email}</span>
+                <i data-lucide="copy" class="w-3 h-3 text-[#787b86] group-hover:text-white transition"></i>
+              </div>
+            ` : '<span class="text-[#787b86]">—</span>'}
+          </td>
           <td class="py-2.5 px-3 text-[#787b86] text-[11px]">${u.created_at}</td>
           <td class="py-2.5 px-3">
             <span class="px-2 py-0.5 rounded text-[10px] font-bold bg-amber-500/20 text-amber-400 border border-amber-500/30">
@@ -983,12 +1010,31 @@ class AuthManager {
     }
   }
 
-  copyToClipboard(text) {
+  showMiniToast(msg) {
+    let toast = document.getElementById('app-mini-toast');
+    if (!toast) {
+      toast = document.createElement('div');
+      toast.id = 'app-mini-toast';
+      toast.className = 'fixed bottom-5 right-5 z-[10020] bg-[#089981] text-white text-xs font-bold px-4 py-2.5 rounded-lg shadow-2xl flex items-center space-x-2 transition-all duration-200 opacity-0 pointer-events-none font-sans';
+      document.body.appendChild(toast);
+    }
+    toast.innerHTML = `<svg class="w-4 h-4 shrink-0 text-white" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><polyline points="20 6 9 17 4 12"></polyline></svg><span>${msg}</span>`;
+    toast.classList.remove('opacity-0', 'pointer-events-none');
+    toast.classList.add('opacity-100');
+    clearTimeout(this.toastTimeout);
+    this.toastTimeout = setTimeout(() => {
+      toast.classList.remove('opacity-100');
+      toast.classList.add('opacity-0', 'pointer-events-none');
+    }, 2200);
+  }
+
+  copyToClipboard(text, customMsg = '') {
+    if (!text) return;
     if (navigator.clipboard) {
       navigator.clipboard.writeText(text);
-      alert(`Copied authorization code: ${text}`);
+      this.showMiniToast(customMsg || `Copied to clipboard: ${text}`);
     } else {
-      prompt('Copy Authorization Code:', text);
+      prompt('Copy to clipboard:', text);
     }
   }
 
