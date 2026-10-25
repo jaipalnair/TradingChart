@@ -1241,3 +1241,97 @@ body.theme-light .btn-chart-corner-auto:hover {
   border-color: #2962ff;
   color: #ffffff;
 }
+
+/* DhanHQ Button: Embossed in Light Radiant Red (Disconnected / Default) */
+.btn-dhan-embossed-red {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 3px 10px !important;
+  border-radius: 5px !important;
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.28) 0%, rgba(185, 28, 28, 0.48) 100%) !important;
+  border: 1px solid rgba(248, 113, 113, 0.75) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 10px rgba(239, 68, 68, 0.45) !important;
+  color: #fee2e2 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.35px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  animation: dhan-pulse-red 2.8s ease-in-out infinite !important;
+}
+
+.btn-dhan-embossed-red:hover {
+  background: linear-gradient(180deg, rgba(239, 68, 68, 0.42) 0%, rgba(185, 28, 28, 0.65) 100%) !important;
+  border-color: #f87171 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 0 14px rgba(239, 68, 68, 0.75) !important;
+  color: #ffffff !important;
+}
+
+@keyframes dhan-pulse-red {
+  0%, 100% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 7px rgba(239, 68, 68, 0.4);
+  }
+  50% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4), 0 0 15px rgba(248, 113, 113, 0.85);
+  }
+}
+
+/* DhanHQ Button: Embossed in Light Radiant Green (Connected) */
+.btn-dhan-embossed-green {
+  display: inline-flex !important;
+  align-items: center !important;
+  gap: 6px !important;
+  padding: 3px 10px !important;
+  border-radius: 5px !important;
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.28) 0%, rgba(16, 185, 129, 0.48) 100%) !important;
+  border: 1px solid rgba(74, 222, 128, 0.75) !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.4), 0 1px 3px rgba(0, 0, 0, 0.4), 0 0 10px rgba(34, 197, 94, 0.55) !important;
+  color: #dcfce7 !important;
+  text-shadow: 0 1px 1px rgba(0, 0, 0, 0.7) !important;
+  font-size: 11px !important;
+  font-weight: 700 !important;
+  letter-spacing: 0.35px !important;
+  cursor: pointer !important;
+  transition: all 0.2s ease-in-out !important;
+  animation: dhan-pulse-green 2.8s ease-in-out infinite !important;
+}
+
+.btn-dhan-embossed-green:hover {
+  background: linear-gradient(180deg, rgba(34, 197, 94, 0.42) 0%, rgba(16, 185, 129, 0.65) 100%) !important;
+  border-color: #4ade80 !important;
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55), 0 0 15px rgba(34, 197, 94, 0.85) !important;
+  color: #ffffff !important;
+}
+
+@keyframes dhan-pulse-green {
+  0%, 100% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.35), 0 1px 2px rgba(0, 0, 0, 0.35), 0 0 7px rgba(34, 197, 94, 0.4);
+  }
+  50% {
+    box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.5), 0 1px 4px rgba(0, 0, 0, 0.4), 0 0 15px rgba(74, 222, 128, 0.85);
+  }
+}
+
+/* Light theme overrides for DhanHQ buttons */
+body.theme-light .btn-dhan-embossed-red {
+  background: linear-gradient(180deg, #fee2e2 0%, #fca5a5 100%) !important;
+  border-color: #ef4444 !important;
+  color: #991b1b !important;
+}
+body.theme-light .btn-dhan-embossed-green {
+  background: linear-gradient(180deg, #dcfce7 0%, #86efac 100%) !important;
+  border-color: #22c55e !important;
+  color: #14532d !important;
+}
+
+/* Shake Animation for Auth Modal Wall */
+@keyframes shake-auth {
+  0%, 100% { transform: translateX(0); }
+  20%, 60% { transform: translateX(-8px); }
+  40%, 80% { transform: translateX(8px); }
+}
+.animate-shake {
+  animation: shake-auth 0.4s ease-in-out !important;
+}

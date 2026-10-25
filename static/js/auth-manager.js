@@ -12,6 +12,10 @@ class AuthManager {
     this.init();
   }
 
+  isAuthenticated() {
+    return !!(this.token && this.currentUser);
+  }
+
   getAuthHeaders() {
     return this.token ? { 'Authorization': `Bearer ${this.token}`, 'Content-Type': 'application/json' } : { 'Content-Type': 'application/json' };
   }
@@ -194,7 +198,10 @@ class AuthManager {
 
   closeAuthModal() {
     // Only allow closing if user is authenticated
-    if (!this.currentUser && !this.token) {
+    if (!this.isAuthenticated()) {
+      const card = document.querySelector('#auth-modal > div');
+      card?.classList.add('animate-shake');
+      setTimeout(() => card?.classList.remove('animate-shake'), 450);
       return;
     }
     document.getElementById('auth-modal')?.classList.add('hidden');

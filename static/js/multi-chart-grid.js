@@ -27,6 +27,20 @@ class MultiChartGrid {
   init() {
     this.loadState();
     this.applyLayout(this.currentLayout);
+
+    // Strict Authentication Guard: If an unauthenticated user touches anywhere on the chart grid, immediately show login/registration
+    const enforceAuthGrid = (e) => {
+      if (window.authManager && !window.authManager.isAuthenticated()) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+        window.authManager.openAuthModal('login');
+        return false;
+      }
+    };
+    ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(evt => {
+      this.gridEl.addEventListener(evt, enforceAuthGrid, true);
+    });
   }
 
   getTileCountForLayout(layout) {
@@ -68,7 +82,7 @@ class MultiChartGrid {
       let symbol = this.defaultSymbols[index % this.defaultSymbols.length];
       let interval = '5m';
       let chartType = 'candlestick';
-      let indicators = ['volume', 'ema20'];
+      let indicators = [];
 
       // Restore per-tile state if available
       if (this.savedChartsState && this.savedChartsState[index]) {
@@ -268,7 +282,7 @@ class MultiChartGrid {
               symbol: sym,
               interval: c.interval || '5m',
               chartType: c.chartType || 'candlestick',
-              indicators: c.indicators || ['volume', 'ema20']
+              indicators: c.indicators || []
             };
           });
         }

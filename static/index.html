@@ -17,7 +17,7 @@
   <script src="/static/tailwind.min.js"></script>
   
   <!-- TradingView Custom Theme & Layouts Stylesheet -->
-  <link rel="stylesheet" href="/static/css/style.css?v=2.22">
+  <link rel="stylesheet" href="/static/css/style.css?v=2.23">
   
   <!-- Local Lucide Icons -->
   <script src="/static/lucide.min.js"></script>
@@ -257,10 +257,10 @@
         <i data-lucide="camera" class="w-3.5 h-3.5"></i>
       </button>
 
-      <!-- DhanHQ Live Connection Button -->
-      <button id="btn-dhan-modal" class="theme-switch-btn flex items-center space-x-1.5 px-2 py-1 rounded text-xs font-semibold border border-[#2a2e39] bg-[#1e222d] hover:border-[#2962ff] transition shadow-sm select-none cursor-pointer shrink-0" title="Connect DhanHQ for Real-Time NSE Live Feed">
-        <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-gray-400"></span>
-        <span class="hidden 2xl:inline text-[11px] font-semibold text-[#d1d4dc]">DhanHQ</span>
+            <!-- DhanHQ Live Connection Button -->
+      <button id="btn-dhan-modal" class="btn-dhan-embossed-red select-none shrink-0 transition cursor-pointer" title="DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)">
+        <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0"></span>
+        <span id="dhan-btn-label" class="inline text-[11px] font-bold tracking-wide">DhanHQ</span>
       </button>
 
       <!-- Theme Switcher (Dark / Light Mode Toggle) -->
@@ -1020,15 +1020,15 @@
   </div>
 
   <!-- Application Logic Scripts -->
-  <script src="/static/js/indicators.js?v=2.22"></script>
-  <script src="/static/js/drawings.js?v=2.22"></script>
-  <script src="/static/js/data-feed.js?v=2.22"></script>
-  <script src="/static/js/chart-instance.js?v=2.22"></script>
-  <script src="/static/js/multi-chart-grid.js?v=2.22"></script>
-  <script src="/static/js/watchlist.js?v=2.22"></script>
-  <script src="/static/js/paper-trading.js?v=2.22"></script>
-  <script src="/static/js/orders-manager.js?v=2.22"></script>
-  <script src="/static/js/auth-manager.js?v=2.22"></script>
-  <script src="/static/js/app.js?v=2.22"></script>
+  <script src="/static/js/indicators.js?v=2.23"></script>
+  <script src="/static/js/drawings.js?v=2.23"></script>
+  <script src="/static/js/data-feed.js?v=2.23"></script>
+  <script src="/static/js/chart-instance.js?v=2.23"></script>
+  <script src="/static/js/multi-chart-grid.js?v=2.23"></script>
+  <script src="/static/js/watchlist.js?v=2.23"></script>
+  <script src="/static/js/paper-trading.js?v=2.23"></script>
+  <script src="/static/js/orders-manager.js?v=2.23"></script>
+  <script src="/static/js/auth-manager.js?v=2.23"></script>
+  <script src="/static/js/app.js?v=2.23"></script>
 </body>
 </html>

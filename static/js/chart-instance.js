@@ -75,24 +75,16 @@ class ChartInstance {
     this.interval = options.interval || '5m';
     this.chartType = options.chartType || 'candlestick'; // candlestick, heikin_ashi, area, line, bar
     
-    // Remember indicator choices in localStorage & ensure new indicators (Supertrend, VWAP, High/Low) are visible
-    let initialInds = ['volume', 'supertrend', 'vwap', 'highlow'];
+    // New user default: 100% clean charts free from all indicators
+    let initialInds = [];
     const savedInds = localStorage.getItem('tradeview_saved_indicators');
     if (savedInds) {
       try {
         const parsed = JSON.parse(savedInds);
-        if (!localStorage.getItem('tradeview_v2_indicators_initialized')) {
-          if (!parsed.includes('supertrend')) parsed.push('supertrend');
-          if (!parsed.includes('vwap')) parsed.push('vwap');
-          if (!parsed.includes('highlow')) parsed.push('highlow');
-          localStorage.setItem('tradeview_v2_indicators_initialized', 'true');
-          localStorage.setItem('tradeview_saved_indicators', JSON.stringify(parsed));
+        if (Array.isArray(parsed)) {
+          initialInds = parsed;
         }
-        initialInds = parsed;
       } catch (e) {}
-    } else {
-      localStorage.setItem('tradeview_v2_indicators_initialized', 'true');
-      localStorage.setItem('tradeview_saved_indicators', JSON.stringify(initialInds));
     }
     this.activeIndicators = new Set(initialInds);
     this.highLowTF = localStorage.getItem('tradeview_highlow_tf') || '15m';
@@ -180,6 +172,20 @@ class ChartInstance {
     this.volEl = this.container.querySelector('.legend-vol');
 
     this.bindHeaderEvents();
+
+    // Strict Authentication Guard: If anyone touches the chart tile without login, immediately redirect to login modal
+    const enforceAuthTile = (e) => {
+      if (window.authManager && !window.authManager.isAuthenticated()) {
+        e.preventDefault();
+        e.stopPropagation();
+        e.stopImmediatePropagation?.();
+        window.authManager.openAuthModal('login');
+        return false;
+      }
+    };
+    ['pointerdown', 'mousedown', 'touchstart', 'click'].forEach(evt => {
+      this.container.addEventListener(evt, enforceAuthTile, true);
+    });
   }
 
   bindHeaderEvents() {

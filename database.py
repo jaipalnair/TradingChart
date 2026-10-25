@@ -156,7 +156,7 @@ def init_db():
             "layout": "4g",
             "theme": "dark",
             "activeWatchlist": "indices",
-            "indicators": ["supertrend", "vwap", "volume"],
+            "indicators": [],
             "dhan_config": {
                 "client_id": "1100189396",
                 "enabled": True
@@ -196,7 +196,7 @@ def create_pending_user(username: str, password: str, email: str = "") -> dict:
             "layout": "4g",
             "theme": "dark",
             "activeWatchlist": "indices",
-            "indicators": ["supertrend", "vwap", "volume"]
+            "indicators": []
         }
         c.execute('''
             INSERT INTO user_settings (user_id, settings_json, updated_at)
@@ -343,7 +343,7 @@ def create_user(username: str, password: str, email: str = "", role: str = "user
             "layout": "4g",
             "theme": "dark",
             "activeWatchlist": "indices",
-            "indicators": ["supertrend", "vwap", "volume"]
+            "indicators": []
         }
         c.execute('''
             INSERT INTO user_settings (user_id, settings_json, updated_at)

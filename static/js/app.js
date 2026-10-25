@@ -394,10 +394,19 @@ class TradeViewApp {
 
     const updateStatusUI = (cfg) => {
       const isConnected = cfg.enabled && cfg.has_token && cfg.status === 'Connected';
+      if (openBtn) {
+        if (isConnected) {
+          openBtn.className = 'btn-dhan-embossed-green select-none shrink-0 transition';
+          openBtn.title = 'DhanHQ Live Feed: Connected 🟢 (Click to configure)';
+        } else {
+          openBtn.className = 'btn-dhan-embossed-red select-none shrink-0 transition';
+          openBtn.title = 'DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)';
+        }
+      }
       if (statusDot) {
         statusDot.className = isConnected 
-          ? 'w-2 h-2 rounded-full bg-emerald-400 shadow-[0_0_6px_#10b981]' 
-          : 'w-2 h-2 rounded-full bg-gray-400';
+          ? 'w-2 h-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#4ade80] shrink-0' 
+          : 'w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0';
       }
       if (modalDot) {
         modalDot.className = isConnected 
@@ -413,11 +422,6 @@ class TradeViewApp {
       }
       if (clientIdInput && cfg.client_id) {
         clientIdInput.value = cfg.client_id;
-      }
-      if (openBtn) {
-        openBtn.title = isConnected 
-          ? 'DhanHQ Live Feed: Connected 🟢' 
-          : 'Connect DhanHQ Account for Real-Time NSE Live Feed';
       }
     };
 
