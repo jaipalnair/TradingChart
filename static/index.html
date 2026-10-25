@@ -278,6 +278,40 @@
         <span id="orders-count-badge" class="hidden px-1.5 py-0.2 rounded-full text-[9px] bg-[#2962ff] text-white font-bold leading-tight">0</span>
       </button>
 
+      <!-- Admin Panel Button (shown for Admins) -->
+      <button id="btn-top-admin" class="hidden tv-btn bg-[#1e222d] border border-[#7c3aed]/50 hover:border-[#7c3aed] text-[#c084fc] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm" title="Admin Control Center & Traffic Analytics">
+        <i data-lucide="shield" class="w-3.5 h-3.5 text-[#a855f7]"></i>
+        <span class="text-[11px] font-semibold">Admin</span>
+      </button>
+
+      <!-- User Profile / Auth Button -->
+      <div class="relative shrink-0" id="user-profile-wrapper">
+        <button id="btn-user-auth" class="tv-btn bg-[#1e222d] border border-[#2a2e39] hover:border-[#2962ff] px-2.5 py-1 text-xs font-semibold shrink-0 transition flex items-center space-x-1.5 shadow-sm cursor-pointer" title="User Profile / Sign In">
+          <i data-lucide="user" class="w-3.5 h-3.5 text-[#2962ff]"></i>
+          <span id="header-username" class="text-[11px] font-semibold">Sign In</span>
+        </button>
+
+        <!-- User Dropdown Menu -->
+        <div id="user-profile-menu" class="hidden absolute right-0 top-full mt-1.5 w-48 bg-[#1e222d] border border-[#2a2e39] rounded-lg shadow-2xl py-1 z-50 divide-y divide-[#2a2e39]/60">
+          <div class="px-3 py-2 text-xs">
+            <div id="profile-menu-name" class="font-bold text-white">Guest</div>
+            <div id="profile-menu-role" class="text-[10px] text-[#787b86]">Not logged in</div>
+          </div>
+          <div class="py-1">
+            <button id="btn-save-profile-setup" class="w-full text-left px-3 py-1.5 text-xs text-[#d1d4dc] hover:bg-[#2a2e39] hover:text-white transition flex items-center space-x-2">
+              <i data-lucide="cloud-upload" class="w-3.5 h-3.5 text-[#089981]"></i>
+              <span>Save Workspace</span>
+            </button>
+          </div>
+          <div class="py-1">
+            <button id="btn-profile-logout" class="w-full text-left px-3 py-1.5 text-xs text-[#f23645] hover:bg-[#2a2e39] transition flex items-center space-x-2">
+              <i data-lucide="log-out" class="w-3.5 h-3.5"></i>
+              <span>Sign Out</span>
+            </button>
+          </div>
+        </div>
+      </div>
+
       <!-- Fullscreen -->
       <button id="btn-toggle-fullscreen" class="tv-icon-btn" title="Toggle Fullscreen">
         <i data-lucide="maximize" class="w-3.5 h-3.5"></i>
@@ -667,15 +701,234 @@
     </div>
   </div>
 
+
+  <!-- User Authentication Modal (Sign In / Register) -->
+  <div id="auth-modal" class="hidden fixed inset-0 z-[10002] flex items-center justify-center bg-black/75 backdrop-blur-sm p-4">
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+        <div class="flex items-center space-x-2">
+          <i data-lucide="user-check" class="w-5 h-5 text-[#2962ff]"></i>
+          <h3 class="font-bold text-base text-white tracking-wide">Trader Account</h3>
+        </div>
+        <button id="btn-close-auth-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <!-- Auth Tabs -->
+      <div class="flex border-b border-[#2a2e39] bg-[#1e222d] text-xs">
+        <button id="tab-auth-login" class="flex-1 py-2.5 font-bold text-center border-b-2 border-[#2962ff] text-white transition">Sign In</button>
+        <button id="tab-auth-register" class="flex-1 py-2.5 font-bold text-center border-b-2 border-transparent text-[#787b86] hover:text-white transition">Create Account</button>
+      </div>
+
+      <!-- Sign In Form -->
+      <form id="form-auth-login" class="p-5 space-y-3.5">
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
+          <input type="text" id="login-username-input" required placeholder="e.g. admin or your name" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+          <input type="password" id="login-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shadow-lg mt-2 cursor-pointer">
+          Sign In
+        </button>
+        <div class="text-[11px] text-[#787b86] text-center pt-1">
+          Default Admin: <b class="text-[#d1d4dc]">admin</b> / <b class="text-[#d1d4dc]">admin123</b>
+        </div>
+      </form>
+
+      <!-- Register Form -->
+      <form id="form-auth-register" class="hidden p-5 space-y-3.5">
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Choose Username</label>
+          <input type="text" id="register-username-input" required placeholder="e.g. rohit" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+          <input type="password" id="register-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email (Optional)</label>
+          <input type="email" id="register-email-input" placeholder="friend@example.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-2 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+        </div>
+        <button type="submit" class="w-full py-2.5 rounded text-xs font-bold bg-[#089981] hover:bg-[#0bb397] text-white transition shadow-lg mt-2 cursor-pointer">
+          Create Account
+        </button>
+      </form>
+
+      <div id="auth-error-msg" class="px-5 pb-4 text-center text-xs"></div>
+    </div>
+  </div>
+
+  <!-- Admin Control Center & Traffic Analytics Modal -->
+  <div id="admin-panel-modal" class="hidden fixed inset-0 z-[10003] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-5xl max-h-[88vh] flex flex-col overflow-hidden text-sm animate-in fade-in zoom-in-95 duration-150">
+      
+      <!-- Modal Header -->
+      <div class="flex items-center justify-between px-5 py-3.5 border-b border-[#2a2e39] bg-[#181b24]">
+        <div class="flex items-center space-x-3">
+          <div class="p-1.5 rounded-lg bg-[#7c3aed]/20 border border-[#7c3aed]/40 text-[#c084fc]">
+            <i data-lucide="shield" class="w-5 h-5"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-base text-white tracking-wide">Admin Control Center</h3>
+            <p class="text-[11px] text-[#787b86]">User Management & Real-Time Traffic Analytics</p>
+          </div>
+        </div>
+
+        <div class="flex items-center space-x-2">
+          <button id="btn-admin-add-user" class="px-3 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition flex items-center space-x-1.5 shadow">
+            <i data-lucide="user-plus" class="w-3.5 h-3.5"></i>
+            <span>Add User</span>
+          </button>
+          <button id="btn-admin-refresh" class="px-2.5 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition flex items-center space-x-1" title="Refresh Admin Metrics">
+            <i data-lucide="refresh-cw" class="w-3.5 h-3.5"></i>
+          </button>
+          <button id="btn-close-admin-modal" class="p-1 rounded text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">
+            <i data-lucide="x" class="w-4 h-4"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- KPI Summary Cards -->
+      <div class="grid grid-cols-4 gap-3 p-4 bg-[#181b24]/50 border-b border-[#2a2e39]">
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Registered Users</div>
+          <div id="admin-kpi-total-users" class="text-xl font-bold text-white font-mono mt-1">0</div>
+        </div>
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Users (Today)</div>
+          <div id="admin-kpi-active-today" class="text-xl font-bold text-[#089981] font-mono mt-1">0</div>
+        </div>
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Active Sessions</div>
+          <div id="admin-kpi-active-sessions" class="text-xl font-bold text-[#c084fc] font-mono mt-1">0</div>
+        </div>
+        <div class="p-3 rounded-lg bg-[#131722] border border-[#2a2e39]">
+          <div class="text-[10px] text-[#787b86] uppercase font-bold tracking-wider">Total Traffic Hits</div>
+          <div id="admin-kpi-total-requests" class="text-xl font-bold text-[#2962ff] font-mono mt-1">0</div>
+        </div>
+      </div>
+
+      <!-- Navigation Tabs -->
+      <div class="flex items-center space-x-1 px-4 py-2 border-b border-[#2a2e39] bg-[#1e222d] text-xs">
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-[#7c3aed] text-white bg-[#7c3aed]/20 transition" data-admin-tab="users">
+          User Accounts
+        </button>
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition" data-admin-tab="activity">
+          Traffic & Live Activity
+        </button>
+        <button class="admin-tab-btn px-3 py-1.5 rounded-md font-semibold border-b-2 border-transparent text-[#787b86] hover:text-white transition" data-admin-tab="endpoints">
+          Top Endpoints
+        </button>
+      </div>
+
+      <!-- Tab 1: User Accounts Table -->
+      <div id="admin-tab-users-content" class="flex-1 overflow-auto p-0">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+            <tr>
+              <th class="py-2.5 px-3">ID</th>
+              <th class="py-2.5 px-3">Username</th>
+              <th class="py-2.5 px-3">Email</th>
+              <th class="py-2.5 px-3">Role</th>
+              <th class="py-2.5 px-3">Registered</th>
+              <th class="py-2.5 px-3">Last Active</th>
+              <th class="py-2.5 px-3">Status</th>
+              <th class="py-2.5 px-3 text-right">Actions</th>
+            </tr>
+          </thead>
+          <tbody id="admin-users-table-body" class="divide-y divide-[#2a2e39]/40">
+            <!-- Dynamic Users -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 2: Activity Table -->
+      <div id="admin-tab-activity-content" class="hidden flex-1 overflow-auto p-0">
+        <table class="w-full text-left border-collapse">
+          <thead class="sticky top-0 bg-[#181b24] border-b border-[#2a2e39] text-[11px] font-semibold text-[#787b86] uppercase tracking-wider">
+            <tr>
+              <th class="py-2.5 px-3">Time</th>
+              <th class="py-2.5 px-3">User</th>
+              <th class="py-2.5 px-3">Request Endpoint</th>
+              <th class="py-2.5 px-3">Client IP</th>
+              <th class="py-2.5 px-3">HTTP Status</th>
+            </tr>
+          </thead>
+          <tbody id="admin-activity-table-body" class="divide-y divide-[#2a2e39]/40">
+            <!-- Dynamic Traffic Logs -->
+          </tbody>
+        </table>
+      </div>
+
+      <!-- Tab 3: Endpoints Breakdown -->
+      <div id="admin-tab-endpoints-content" class="hidden flex-1 overflow-auto p-4 space-y-2">
+        <div class="text-xs text-[#787b86] mb-2 font-semibold uppercase tracking-wider">Most Requested Platform Endpoints</div>
+        <div id="admin-endpoints-list" class="space-y-2">
+          <!-- Dynamic Endpoints -->
+        </div>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- Admin: Create User Modal -->
+  <div id="admin-create-user-modal" class="hidden fixed inset-0 z-[10004] flex items-center justify-center bg-black/80 backdrop-blur-sm p-4">
+    <div class="bg-[#1e222d] border border-[#2a2e39] rounded-xl shadow-2xl w-full max-w-sm overflow-hidden text-sm">
+      <div class="flex items-center justify-between px-4 py-3 border-b border-[#2a2e39] bg-[#181b24]">
+        <h4 class="font-bold text-white flex items-center space-x-1.5">
+          <i data-lucide="user-plus" class="w-4 h-4 text-[#7c3aed]"></i>
+          <span>Add New User</span>
+        </h4>
+        <button id="btn-close-create-user-modal" class="p-1 rounded text-[#787b86] hover:text-white transition">
+          <i data-lucide="x" class="w-4 h-4"></i>
+        </button>
+      </div>
+
+      <form id="form-admin-create-user" class="p-4 space-y-3">
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Username</label>
+          <input type="text" id="new-user-username-input" required placeholder="e.g. rahul" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Password</label>
+          <input type="password" id="new-user-password-input" required placeholder="••••••••" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Email (Optional)</label>
+          <input type="email" id="new-user-email-input" placeholder="friend@domain.com" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#7c3aed] font-mono">
+        </div>
+        <div>
+          <label class="block text-[11px] font-semibold text-[#787b86] mb-1">Role</label>
+          <select id="new-user-role-select" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white focus:outline-none focus:border-[#7c3aed]">
+            <option value="user">User (Standard Access)</option>
+            <option value="admin">Administrator (Full Access)</option>
+          </select>
+        </div>
+        <div id="admin-create-user-status-msg" class="text-center text-xs"></div>
+        <div class="flex items-center justify-end space-x-2 pt-2 border-t border-[#2a2e39]">
+          <button type="button" id="btn-cancel-create-user" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white transition">Cancel</button>
+          <button type="submit" class="px-4 py-1.5 rounded text-xs font-semibold bg-[#7c3aed] hover:bg-[#6d28d9] text-white transition shadow">Create User</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
   <!-- Application Logic Scripts -->
-  <script src="/static/js/indicators.js?v=2.15"></script>
-  <script src="/static/js/drawings.js?v=2.15"></script>
-  <script src="/static/js/data-feed.js?v=2.15"></script>
-  <script src="/static/js/chart-instance.js?v=2.15"></script>
-  <script src="/static/js/multi-chart-grid.js?v=2.15"></script>
-  <script src="/static/js/watchlist.js?v=2.15"></script>
-  <script src="/static/js/paper-trading.js?v=2.15"></script>
-  <script src="/static/js/orders-manager.js?v=2.15"></script>
-  <script src="/static/js/app.js?v=2.15"></script>
+  <script src="/static/js/indicators.js?v=2.16"></script>
+  <script src="/static/js/drawings.js?v=2.16"></script>
+  <script src="/static/js/data-feed.js?v=2.16"></script>
+  <script src="/static/js/chart-instance.js?v=2.16"></script>
+  <script src="/static/js/multi-chart-grid.js?v=2.16"></script>
+  <script src="/static/js/watchlist.js?v=2.16"></script>
+  <script src="/static/js/paper-trading.js?v=2.16"></script>
+  <script src="/static/js/orders-manager.js?v=2.16"></script>
+  <script src="/static/js/auth-manager.js?v=2.16"></script>
+  <script src="/static/js/app.js?v=2.16"></script>
 </body>
 </html>

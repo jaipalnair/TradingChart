@@ -37,3 +37,7 @@ scratch/
 # OS artifacts
 .DS_Store
 Thumbs.db
+
+# SQLite Database
+*.db
+*.db-journal

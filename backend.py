@@ -13,7 +13,8 @@ from datetime import datetime, timezone, timedelta
 from typing import Optional, List, Dict, Any
 from pathlib import Path
 
-from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, Request, Header, Depends
+import database
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -35,6 +36,45 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Initialize SQLite database (Users, Profiles, Settings, Traffic)
+database.init_db()
+
+@app.middleware("http")
+async def traffic_logger_middleware(request: Request, call_next):
+    response = await call_next(request)
+    path = request.url.path
+    # Ignore static files and noisy favicon to keep traffic logs meaningful
+    if not (path.startswith("/static/") or any(path.endswith(ext) for ext in [".ico", ".svg", ".png", ".jpg", ".css", ".js"])):
+        auth_header = request.headers.get("Authorization")
+        user = None
+        if auth_header:
+            parts = auth_header.split()
+            if len(parts) == 2 and parts[0].lower() == "bearer":
+                user = database.get_user_by_token(parts[1])
+
+        client_ip = request.client.host if request.client else "127.0.0.1"
+        forwarded = request.headers.get("x-forwarded-for")
+        if forwarded:
+            client_ip = forwarded.split(",")[0].strip()
+
+        user_agent = request.headers.get("user-agent", "")[:150]
+        user_id = user["id"] if user else None
+        username = user["username"] if user else "guest"
+
+        try:
+            database.log_traffic(
+                user_id=user_id,
+                username=username,
+                endpoint=path,
+                method=request.method,
+                ip_address=client_ip,
+                user_agent=user_agent,
+                status_code=response.status_code
+            )
+        except Exception as e:
+            pass
+    return response
 
 # In-memory Paper Trading Account State
 PAPER_ACCOUNT = {
@@ -1108,6 +1148,196 @@ def cancel_dhan_order(order_id: str):
             return {"status": "success", "source": "paper", "data": o}
 
     raise HTTPException(status_code=404, detail="Order not found")
+
+
+# ================= USER AUTHENTICATION & MULTI-TENANCY =================
+
+class LoginRequest(BaseModel):
+    username: str
+    password: str
+
+class RegisterRequest(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = ""
+
+class CreateUserRequest(BaseModel):
+    username: str
+    password: str
+    email: Optional[str] = ""
+    role: str = "user"
+
+class UserStatusRequest(BaseModel):
+    is_active: bool
+
+class ResetPasswordRequest(BaseModel):
+    new_password: str
+
+def get_current_user_opt(authorization: Optional[str] = Header(None)):
+    if not authorization:
+        return None
+    parts = authorization.split()
+    if len(parts) == 2 and parts[0].lower() == "bearer":
+        return database.get_user_by_token(parts[1])
+    return None
+
+def get_current_user(authorization: Optional[str] = Header(None)):
+    user = get_current_user_opt(authorization)
+    if not user:
+        raise HTTPException(status_code=401, detail="Please log in to continue")
+    return user
+
+def get_admin_user(authorization: Optional[str] = Header(None)):
+    user = get_current_user(authorization)
+    if user.get("role") != "admin":
+        raise HTTPException(status_code=403, detail="Admin privileges required")
+    return user
+
+@app.post("/api/auth/register")
+def register(req: RegisterRequest):
+    """Register a new user account."""
+    if not req.username or len(req.username.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if not req.password or len(req.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+
+    try:
+        user = database.create_user(
+            username=req.username.strip(),
+            password=req.password,
+            email=req.email.strip() if req.email else "",
+            role="user"
+        )
+        # Automatically authenticate
+        auth = database.authenticate_user(req.username.strip(), req.password)
+        return {
+            "status": "success",
+            "message": "Account created successfully",
+            "user": auth,
+            "token": auth["token"]
+        }
+    except Exception as e:
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(status_code=400, detail="Username already taken")
+        raise HTTPException(status_code=400, detail=f"Registration failed: {str(e)}")
+
+@app.post("/api/auth/login")
+def login(req: LoginRequest):
+    """Authenticate username and password."""
+    auth = database.authenticate_user(req.username, req.password)
+    if auth == "INACTIVE":
+        raise HTTPException(status_code=403, detail="Your account has been deactivated by administrator.")
+    if not auth:
+        raise HTTPException(status_code=401, detail="Invalid username or password")
+    return {
+        "status": "success",
+        "user": {
+            "id": auth["id"],
+            "username": auth["username"],
+            "email": auth["email"],
+            "role": auth["role"],
+            "last_login": auth["last_login"]
+        },
+        "token": auth["token"]
+    }
+
+@app.post("/api/auth/logout")
+def logout(authorization: Optional[str] = Header(None)):
+    """Terminate current user session."""
+    if authorization:
+        parts = authorization.split()
+        if len(parts) == 2 and parts[0].lower() == "bearer":
+            database.logout_user(parts[1])
+    return {"status": "success", "message": "Logged out successfully"}
+
+@app.get("/api/auth/me")
+def get_current_user_profile(user: dict = Depends(get_current_user)):
+    """Get current authenticated user info."""
+    return {"status": "success", "user": user}
+
+# ================= USER SETTINGS & PROFILES =================
+
+@app.get("/api/user/settings")
+def get_settings(user: dict = Depends(get_current_user)):
+    """Load current user's personalized chart, layout, indicator, and watchlist settings."""
+    settings = database.get_user_settings(user["id"])
+    return {
+        "status": "success",
+        "username": user["username"],
+        "settings": settings
+    }
+
+@app.post("/api/user/settings")
+def save_settings(settings: dict, user: dict = Depends(get_current_user)):
+    """Save current user's personalized settings to their profile."""
+    database.save_user_settings(user["id"], settings)
+    return {"status": "success", "message": "Settings saved to user profile"}
+
+# ================= ADMIN PANEL & TRAFFIC ANALYTICS =================
+
+@app.get("/api/admin/stats")
+def get_admin_dashboard_stats(admin: dict = Depends(get_admin_user)):
+    """Get high-level traffic, user counts, and platform activity."""
+    stats = database.get_traffic_stats()
+    return {"status": "success", "data": stats}
+
+@app.get("/api/admin/users")
+def get_admin_users_list(admin: dict = Depends(get_admin_user)):
+    """Get complete user registry with activity timestamps."""
+    users = database.list_all_users()
+    return {"status": "success", "users": users}
+
+@app.post("/api/admin/users")
+def admin_create_user(req: CreateUserRequest, admin: dict = Depends(get_admin_user)):
+    """Create a user account manually (for giving friends access)."""
+    if not req.username or len(req.username.strip()) < 3:
+        raise HTTPException(status_code=400, detail="Username must be at least 3 characters")
+    if not req.password or len(req.password) < 4:
+        raise HTTPException(status_code=400, detail="Password must be at least 4 characters")
+
+    try:
+        user = database.create_user(
+            username=req.username.strip(),
+            password=req.password,
+            email=req.email.strip() if req.email else "",
+            role=req.role if req.role in ["user", "admin"] else "user"
+        )
+        return {"status": "success", "message": f"User '{req.username}' created", "user": user}
+    except Exception as e:
+        if "UNIQUE constraint failed" in str(e):
+            raise HTTPException(status_code=400, detail="Username already exists")
+        raise HTTPException(status_code=400, detail=str(e))
+
+@app.put("/api/admin/users/{user_id}/status")
+def admin_set_user_status(user_id: int, req: UserStatusRequest, admin: dict = Depends(get_admin_user)):
+    """Activate or deactivate user account access."""
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Cannot deactivate your own admin account")
+    database.update_user_status(user_id, req.is_active)
+    state = "activated" if req.is_active else "deactivated"
+    return {"status": "success", "message": f"User account {state}"}
+
+@app.put("/api/admin/users/{user_id}/reset-password")
+def admin_reset_user_password(user_id: int, req: ResetPasswordRequest, admin: dict = Depends(get_admin_user)):
+    """Reset a user's password."""
+    if not req.new_password or len(req.new_password) < 4:
+        raise HTTPException(status_code=400, detail="New password must be at least 4 characters")
+    database.reset_user_password(user_id, req.new_password)
+    return {"status": "success", "message": "Password reset successfully"}
+
+@app.delete("/api/admin/users/{user_id}")
+def admin_delete_user(user_id: int, admin: dict = Depends(get_admin_user)):
+    """Delete a user account and their settings."""
+    if user_id == admin["id"]:
+        raise HTTPException(status_code=400, detail="Cannot delete your own admin account")
+    database.delete_user(user_id)
+    return {"status": "success", "message": "User deleted successfully"}
+
+@app.get("/api/admin/activity")
+def get_admin_recent_activity(limit: int = 50, admin: dict = Depends(get_admin_user)):
+    """View recent traffic requests, IP addresses, and user activity."""
+    logs = database.get_recent_activity(limit=limit)
+    return {"status": "success", "activity": logs}
 
 
 # ================= STATIC & ROOT =================
