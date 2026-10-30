@@ -1,5 +1,7 @@
 # Credentials & Sensitive Configs
+fyers_config.json
 dhan_config.json
+*.bak
 .env
 *.env
 

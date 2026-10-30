@@ -1018,19 +1018,19 @@
 
 
 
-            <!-- DhanHQ Live Connection Button -->
+            <!-- Fyers Live Connection Button -->
 
 
 
-      <button id="btn-dhan-modal" class="btn-dhan-embossed-red select-none shrink-0 transition cursor-pointer" title="DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)">
+      <button id="btn-fyers-modal" class="btn-fyers-embossed-red select-none shrink-0 transition cursor-pointer" title="Fyers Account: Disconnected 🔴 (Click to connect for real-time NSE feed)">
 
 
 
-        <span id="dhan-status-dot" class="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0"></span>
+        <span id="fyers-status-dot" class="w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0"></span>
 
 
 
-        <span id="dhan-btn-label" class="inline text-[11px] font-bold tracking-wide">DhanHQ</span>
+        <span id="fyers-btn-label" class="inline text-[11px] font-bold tracking-wide">Fyers</span>
 
 
 
@@ -1686,11 +1686,11 @@
 
 
 
-  <!-- DhanHQ API Connection Modal -->
+  <!-- Fyers API Connection Modal -->
 
 
 
-  <div id="dhan-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
+  <div id="fyers-modal" class="fixed inset-0 bg-black/75 backdrop-blur-sm z-[200] hidden flex items-center justify-center p-4">
 
 
 
@@ -1718,7 +1718,7 @@
 
 
 
-            <h3 class="text-sm font-bold text-white">Connect DhanHQ Account</h3>
+            <h3 class="text-sm font-bold text-white">Connect Fyers Account</h3>
 
 
 
@@ -1734,7 +1734,7 @@
 
 
 
-        <button id="btn-close-dhan-modal" class="text-[#787b86] hover:text-white p-1 rounded transition">
+        <button id="btn-close-fyers-modal" class="text-[#787b86] hover:text-white p-1 rounded transition">
 
 
 
@@ -1762,7 +1762,7 @@
 
 
 
-        <div id="dhan-status-box" class="p-2.5 rounded-lg border border-[#2a2e39] bg-[#131722] flex items-center justify-between">
+        <div id="fyers-status-box" class="p-2.5 rounded-lg border border-[#2a2e39] bg-[#131722] flex items-center justify-between">
 
 
 
@@ -1770,11 +1770,11 @@
 
 
 
-            <span id="dhan-modal-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
+            <span id="fyers-modal-dot" class="w-2.5 h-2.5 rounded-full bg-gray-400"></span>
 
 
 
-            <span id="dhan-modal-status-text" class="font-semibold text-[#d1d4dc]">Status: Not Configured</span>
+            <span id="fyers-modal-status-text" class="font-semibold text-[#d1d4dc]">Status: Not Configured</span>
 
 
 
@@ -1786,7 +1786,7 @@
 
 
 
-            <input type="checkbox" id="dhan-enable-toggle" class="form-checkbox h-3.5 w-3.5 rounded bg-[#1e222d] border-[#2a2e39] text-[#2962ff] focus:ring-0">
+            <input type="checkbox" id="fyers-enable-toggle" class="form-checkbox h-3.5 w-3.5 rounded bg-[#1e222d] border-[#2a2e39] text-[#2962ff] focus:ring-0">
 
 
 
@@ -1818,15 +1818,9 @@
 
 
 
-            <li>Log into <a href="https://web.dhan.co" target="_blank" class="text-[#2962ff] underline font-semibold">web.dhan.co</a></li>
-
-
-
-            <li>Click <b>Profile</b> (top right) &rarr; <b>Access DhanHQ APIs</b></li>
-
-
-
-            <li>Copy your <b>Client ID</b> and generate a new <b>Access Token</b></li>
+            <li>Log into <a href="https://myapi.fyers.in" target="_blank" class="text-[#2962ff] underline font-semibold">myapi.fyers.in</a></li>
+            <li>Click <b>Create App</b> or select your App & copy the <b>App ID</b> (e.g. <code>ABCDE-100</code>)</li>
+            <li>Generate your daily <b>Access Token</b> and paste below</li>
 
 
 
@@ -1846,11 +1840,11 @@
 
 
 
-          <label class="font-semibold text-[#d1d4dc] block">Dhan Client ID</label>
+          <label class="font-semibold text-[#d1d4dc] block">Fyers App ID</label>
 
 
 
-          <input type="text" id="dhan-client-id-input" placeholder="e.g. 1000123456" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
+          <input type="text" id="fyers-app-id-input" placeholder="e.g. XC12345-100" class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono">
 
 
 
@@ -1870,7 +1864,7 @@
 
 
 
-          <textarea id="dhan-access-token-input" rows="3" placeholder="Paste your 24h / 30-day Access Token here..." class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono break-all"></textarea>
+          <textarea id="fyers-access-token-input" rows="3" placeholder="Paste your Fyers Access Token here..." class="w-full bg-[#131722] border border-[#2a2e39] rounded px-3 py-1.5 text-xs text-white placeholder-[#787b86] focus:outline-none focus:border-[#2962ff] font-mono break-all"></textarea>
 
 
 
@@ -1894,7 +1888,7 @@
 
 
 
-        <span id="dhan-save-msg" class="text-[11px] text-[#787b86]"></span>
+        <span id="fyers-save-msg" class="text-[11px] text-[#787b86]"></span>
 
 
 
@@ -1902,11 +1896,11 @@
 
 
 
-          <button id="btn-cancel-dhan-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">Cancel</button>
+          <button id="btn-cancel-fyers-modal" class="px-3 py-1.5 rounded text-xs text-[#787b86] hover:text-white hover:bg-[#2a2e39] transition">Cancel</button>
 
 
 
-          <button id="btn-save-dhan-config" class="px-3.5 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow-md">
+          <button id="btn-save-fyers-config" class="px-3.5 py-1.5 rounded text-xs font-semibold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition flex items-center space-x-1.5 shadow-md">
 
 
 
@@ -1986,7 +1980,7 @@
 
 
 
-          <div id="orders-dhan-status-pill" class="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs bg-[#2a2e39]/60 border border-[#2a2e39]">
+          <div id="orders-fyers-status-pill" class="flex items-center space-x-1.5 px-2.5 py-0.5 rounded-full text-xs bg-[#2a2e39]/60 border border-[#2a2e39]">
 
 
 
@@ -1994,7 +1988,7 @@
 
 
 
-            <span class="text-[#089981] font-semibold">DhanHQ Live</span>
+            <span class="text-[#089981] font-semibold">Fyers Live</span>
 
 
 
@@ -2102,7 +2096,7 @@
 
 
 
-          Real-time sync with DhanHQ orderbook
+          Real-time sync with Fyers orderbook
 
 
 
@@ -2310,7 +2304,7 @@
 
 
 
-        <!-- Destination Routing: DhanHQ vs Paper Trading -->
+        <!-- Destination Routing: Fyers vs Paper Trading -->
 
 
 
@@ -2330,7 +2324,7 @@
 
 
 
-              <div class="text-xs font-bold text-white">Route directly to DhanHQ</div>
+              <div class="text-xs font-bold text-white">Route directly to Fyers</div>
 
 
 
@@ -2350,7 +2344,7 @@
 
 
 
-            <input type="checkbox" id="order-route-dhan-toggle" class="sr-only peer" checked>
+            <input type="checkbox" id="order-route-fyers-toggle" class="sr-only peer" checked>
 
 
 
@@ -4189,7 +4183,7 @@
 
 
 
-  <script src="/static/js/orders-manager.js?v=2.25"></script>
+  <script src="/static/js/orders-manager.js?v=2.28"></script>
 
 
 
@@ -4197,7 +4191,7 @@
 
 
 
-  <script src="/static/js/app.js?v=2.25"></script>
+  <script src="/static/js/app.js?v=2.28"></script>
 
 
 

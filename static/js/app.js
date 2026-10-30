@@ -59,7 +59,7 @@ class TradeViewApp {
 
     this.bindHotkeys();
 
-    this.initDhanIntegration();
+    this.initFyersIntegration();
 
     // 5. Market status & IST Clock checking
 
@@ -645,270 +645,149 @@ class TradeViewApp {
 
   }
 
-  initDhanIntegration() {
-
-    const modal = document.getElementById('dhan-modal');
-
-    const openBtn = document.getElementById('btn-dhan-modal');
-
-    const closeBtn = document.getElementById('btn-close-dhan-modal');
-
-    const cancelBtn = document.getElementById('btn-cancel-dhan-modal');
-
-    const saveBtn = document.getElementById('btn-save-dhan-config');
-
-    const statusDot = document.getElementById('dhan-status-dot');
-
-    const modalDot = document.getElementById('dhan-modal-dot');
-
-    const statusText = document.getElementById('dhan-modal-status-text');
-
-    const enableToggle = document.getElementById('dhan-enable-toggle');
-
-    const clientIdInput = document.getElementById('dhan-client-id-input');
-
-    const tokenInput = document.getElementById('dhan-access-token-input');
-
-    const saveMsg = document.getElementById('dhan-save-msg');
+  initFyersIntegration() {
+    const modal = document.getElementById('fyers-modal') || document.getElementById('dhan-modal');
+    const openBtn = document.getElementById('btn-fyers-modal') || document.getElementById('btn-dhan-modal');
+    const closeBtn = document.getElementById('btn-close-fyers-modal') || document.getElementById('btn-close-dhan-modal');
+    const cancelBtn = document.getElementById('btn-cancel-fyers-modal') || document.getElementById('btn-cancel-dhan-modal');
+    const saveBtn = document.getElementById('btn-save-fyers-config') || document.getElementById('btn-save-dhan-config');
+    const statusDot = document.getElementById('fyers-status-dot') || document.getElementById('dhan-status-dot');
+    const modalDot = document.getElementById('fyers-modal-dot') || document.getElementById('dhan-modal-dot');
+    const statusText = document.getElementById('fyers-modal-status-text') || document.getElementById('dhan-modal-status-text');
+    const enableToggle = document.getElementById('fyers-enable-toggle') || document.getElementById('dhan-enable-toggle');
+    const appIdInput = document.getElementById('fyers-app-id-input') || document.getElementById('dhan-client-id-input');
+    const tokenInput = document.getElementById('fyers-access-token-input') || document.getElementById('dhan-access-token-input');
+    const saveMsg = document.getElementById('fyers-save-msg') || document.getElementById('dhan-save-msg');
 
     const updateStatusUI = (cfg) => {
-
       const isConnected = cfg.enabled && cfg.has_token && cfg.status === 'Connected';
-
       if (openBtn) {
-
         if (isConnected) {
-
-          openBtn.className = 'btn-dhan-embossed-green select-none shrink-0 transition';
-
-          openBtn.title = 'DhanHQ Live Feed: Connected 🟢 (Click to configure)';
-
+          openBtn.className = 'btn-fyers-embossed-green select-none shrink-0 transition';
+          openBtn.title = 'Fyers Live Feed: Connected 🟢 (Click to configure)';
         } else {
-
-          openBtn.className = 'btn-dhan-embossed-red select-none shrink-0 transition';
-
-          openBtn.title = 'DhanHQ Account: Disconnected 🔴 (Click to connect for real-time NSE feed)';
-
+          openBtn.className = 'btn-fyers-embossed-red select-none shrink-0 transition';
+          openBtn.title = 'Fyers Account: Disconnected 🔴 (Click to connect for real-time NSE feed)';
         }
-
       }
-
       if (statusDot) {
-
         statusDot.className = isConnected 
-
           ? 'w-2 h-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#4ade80] shrink-0' 
-
           : 'w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0';
-
       }
-
       if (modalDot) {
-
         modalDot.className = isConnected 
-
           ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]' 
-
           : 'w-2.5 h-2.5 rounded-full bg-gray-400';
-
       }
-
       if (statusText) {
-
         statusText.textContent = 'Status: ' + (cfg.status || (isConnected ? 'Connected' : 'Not Configured'));
-
         statusText.className = isConnected ? 'font-semibold text-emerald-400' : 'font-semibold text-[#d1d4dc]';
-
       }
-
       if (enableToggle) {
-
         enableToggle.checked = !!cfg.enabled;
-
       }
-
-      if (clientIdInput && cfg.client_id) {
-
-        clientIdInput.value = cfg.client_id;
-
+      if (appIdInput && (cfg.app_id || cfg.client_id)) {
+        appIdInput.value = cfg.app_id || cfg.client_id;
       }
-
     };
 
     // Check status on startup
-
-    fetch('/api/dhan/config')
-
+    fetch('/api/fyers/config')
       .then(r => r.json())
-
       .then(cfg => updateStatusUI(cfg))
-
       .catch(() => {});
 
     // Open Modal
-
     openBtn?.addEventListener('click', () => {
-
       if (saveMsg) saveMsg.textContent = '';
-
-      fetch('/api/dhan/config')
-
+      fetch('/api/fyers/config')
         .then(r => r.json())
-
         .then(cfg => {
-
           updateStatusUI(cfg);
-
           modal?.classList.remove('hidden');
-
           if (window.lucide) window.lucide.createIcons();
-
         })
-
         .catch(() => {
-
           modal?.classList.remove('hidden');
-
           if (window.lucide) window.lucide.createIcons();
-
         });
-
     });
 
     // Close Modal
-
     [closeBtn, cancelBtn].forEach(b => {
-
       b?.addEventListener('click', () => modal?.classList.add('hidden'));
-
     });
 
     // Save & Connect
-
     saveBtn?.addEventListener('click', async () => {
-
-      const clientId = clientIdInput?.value?.trim() || '';
-
+      const appId = appIdInput?.value?.trim() || '';
       const token = tokenInput?.value?.trim() || '';
-
       const enabled = enableToggle?.checked ?? true;
 
-      if (!clientId) {
-
+      if (!appId) {
         if (saveMsg) {
-
-          saveMsg.textContent = 'Please enter your Dhan Client ID';
-
+          saveMsg.textContent = 'Please enter your Fyers App ID (e.g. XC12345-100)';
           saveMsg.className = 'text-[11px] text-[#f23645]';
-
         }
-
         return;
-
       }
 
       saveBtn.disabled = true;
-
       const originalText = saveBtn.innerHTML;
-
       saveBtn.innerHTML = '<span>Verifying...</span>';
-
       if (saveMsg) {
-
-        saveMsg.textContent = 'Testing connection with DhanHQ...';
-
+        saveMsg.textContent = 'Testing connection with Fyers API...';
         saveMsg.className = 'text-[11px] text-amber-400';
-
       }
 
       try {
-
-        const resp = await fetch('/api/dhan/config', {
-
+        const resp = await fetch('/api/fyers/config', {
           method: 'POST',
-
           headers: { 'Content-Type': 'application/json' },
-
-          body: JSON.stringify({ client_id: clientId, access_token: token, enabled: enabled })
-
+          body: JSON.stringify({ app_id: appId, access_token: token, enabled: enabled })
         });
-
         const res = await resp.json();
-
         if (res.status === 'ok') {
-
           const isSuccess = res.connection_status === 'Connected';
-
           if (saveMsg) {
-
-            saveMsg.textContent = isSuccess ? '🟢 Connected to DhanHQ!' : res.connection_status;
-
+            saveMsg.textContent = isSuccess ? '🟢 Connected to Fyers!' : res.connection_status;
             saveMsg.className = isSuccess ? 'text-[11px] text-emerald-400 font-semibold' : 'text-[11px] text-amber-400';
-
           }
-
-          this.showToast(isSuccess ? '🟢 DhanHQ Live Feed Connected!' : 'DhanHQ Saved: ' + res.connection_status);
-
+          this.showToast(isSuccess ? '🟢 Fyers Live Feed Connected!' : 'Fyers Saved: ' + res.connection_status);
           
-
           // Refresh status
-
-          const cfgResp = await fetch('/api/dhan/config');
-
+          const cfgResp = await fetch('/api/fyers/config');
           const cfg = await cfgResp.json();
-
           updateStatusUI(cfg);
 
           // Clear token input for security
-
           if (tokenInput) tokenInput.value = '';
 
           setTimeout(() => {
-
             modal?.classList.add('hidden');
-
           }, 1200);
 
-          // Reload all charts to pull DhanHQ data
-
+          // Reload all charts to pull Fyers data
           if (window.multiChartGrid) {
-
             window.multiChartGrid.charts.forEach(c => c.loadData());
-
           }
-
         } else {
-
           if (saveMsg) {
-
             saveMsg.textContent = res.message || 'Save failed';
-
             saveMsg.className = 'text-[11px] text-[#f23645]';
-
           }
-
         }
-
       } catch (err) {
-
         if (saveMsg) {
-
           saveMsg.textContent = 'Failed to connect: ' + err.message;
-
           saveMsg.className = 'text-[11px] text-[#f23645]';
-
         }
-
       } finally {
-
         saveBtn.disabled = false;
-
         saveBtn.innerHTML = originalText;
-
       }
-
     });
-
   }
 
   openSymbolSearchModal() {

@@ -157,8 +157,8 @@ def init_db():
             "theme": "dark",
             "activeWatchlist": "indices",
             "indicators": [],
-            "dhan_config": {
-                "client_id": "1100189396",
+            "fyers_config": {
+                "app_id": "",
                 "enabled": True
             }
         }

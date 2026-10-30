@@ -1,5 +1,5 @@
 /**
- * TraderView - DhanHQ & Unified Orders Management
+ * TraderView - Fyers API & Unified Orders Management
  * Handles Order Placement (B/S buttons), Order Book, Edit/Modify, Cancel/Remove
  */
 
@@ -7,6 +7,7 @@ class OrdersManager {
   constructor() {
     this.orders = [];
     this.paperOrders = [];
+    this.fyersConnected = false;
     this.dhanConnected = false;
     this.activeFilter = 'all'; // all, pending, traded, cancelled
     this.currentModifyOrder = null;
@@ -142,17 +143,18 @@ class OrdersManager {
 
   async fetchOrders() {
     try {
-      const res = await fetch('/api/dhan/orders');
+      const res = await fetch('/api/fyers/orders');
       if (!res.ok) return;
       const data = await res.json();
-      this.dhanConnected = data.dhan_connected;
-      this.orders = data.dhan_orders || [];
+      this.fyersConnected = data.fyers_connected ?? data.dhan_connected;
+      this.dhanConnected = this.fyersConnected;
+      this.orders = data.fyers_orders || data.dhan_orders || [];
       this.paperOrders = data.paper_orders || [];
 
       // Update badge
-      const openDhan = this.orders.filter(o => ['PENDING', 'OPEN', 'TRANSIT'].includes(o.orderStatus?.toUpperCase())).length;
+      const openFyers = this.orders.filter(o => ['PENDING', 'OPEN', 'TRANSIT'].includes(o.orderStatus?.toUpperCase())).length;
       const openPaper = this.paperOrders.filter(o => o.orderStatus === 'PENDING').length;
-      const totalOpen = openDhan + openPaper;
+      const totalOpen = openFyers + openPaper;
 
       const badge = document.getElementById('orders-count-badge');
       if (badge) {
@@ -165,10 +167,10 @@ class OrdersManager {
       }
 
       // Update modal status badge
-      const connBadge = document.getElementById('orders-dhan-status-pill');
+      const connBadge = document.getElementById('orders-fyers-status-pill') || document.getElementById('orders-dhan-status-pill');
       if (connBadge) {
-        if (this.dhanConnected) {
-          connBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span><span class="text-[#089981] font-semibold">DhanHQ Live</span>`;
+        if (this.fyersConnected) {
+          connBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#089981] animate-pulse"></span><span class="text-[#089981] font-semibold">Fyers Live</span>`;
         } else {
           connBadge.innerHTML = `<span class="w-2 h-2 rounded-full bg-[#787b86]"></span><span class="text-[#787b86]">Paper Trading Mode</span>`;
         }
@@ -197,10 +199,10 @@ class OrdersManager {
     const tbody = document.getElementById('orders-table-body');
     if (!tbody) return;
 
-    // Combine Dhan and Paper orders
+    // Combine Fyers and Paper orders
     const allOrders = [
       ...this.orders.map(o => ({
-        id: o.orderId || o.dhanClientId,
+        id: o.orderId || o.id,
         symbol: o.tradingSymbol || o.symbol || '-',
         side: (o.transactionType || 'BUY').toUpperCase(),
         type: (o.orderType || 'MARKET').toUpperCase(),
@@ -210,7 +212,7 @@ class OrdersManager {
         price: o.price || 0,
         status: (o.orderStatus || 'PENDING').toUpperCase(),
         time: o.orderTimestamp || o.createTime || '-',
-        source: 'dhan',
+        source: 'fyers',
         raw: o
       })),
       ...this.paperOrders.map(o => ({
@@ -272,8 +274,9 @@ class OrdersManager {
         statusBadge = `<span class="px-2 py-0.5 rounded text-[10px] font-semibold bg-[#f23645]/20 text-[#f23645] border border-[#f23645]/40">${o.status}</span>`;
       }
 
-      const sourceBadge = o.source === 'dhan' 
-        ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">DHAN</span>`
+      const isLive = o.source === 'fyers' || o.source === 'dhan';
+      const sourceBadge = isLive 
+        ? `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#089981]/15 text-[#089981] border border-[#089981]/30">FYERS</span>`
         : `<span class="px-1.5 py-0.5 rounded text-[9px] font-bold bg-[#787b86]/15 text-[#787b86] border border-[#787b86]/30">PAPER</span>`;
 
       return `
@@ -350,9 +353,9 @@ class OrdersManager {
     document.getElementById('order-qty-input').value = 1;
 
     // Set routing mode
-    const dhanToggle = document.getElementById('order-route-dhan-toggle');
-    if (dhanToggle) {
-      dhanToggle.checked = this.dhanConnected;
+    const fyersToggle = document.getElementById('order-route-fyers-toggle') || document.getElementById('order-route-dhan-toggle');
+    if (fyersToggle) {
+      fyersToggle.checked = this.fyersConnected;
     }
 
     this.setPlaceSide(side);
@@ -412,7 +415,7 @@ class OrdersManager {
     const productType = activeProdBtn?.value || 'INTRADAY';
     const price = parseFloat(document.getElementById('order-price-input')?.value || '0');
     const triggerPrice = parseFloat(document.getElementById('order-trigger-price-input')?.value || '0');
-    const routeDhan = document.getElementById('order-route-dhan-toggle')?.checked;
+    const routeFyers = document.getElementById('order-route-fyers-toggle')?.checked ?? document.getElementById('order-route-dhan-toggle')?.checked;
 
     const statusMsg = document.getElementById('order-place-status-msg');
     const submitBtn = document.getElementById('btn-submit-order');
@@ -441,10 +444,10 @@ class OrdersManager {
         price: orderType === 'LIMIT' ? price : 0.0,
         trigger_price: triggerPrice,
         validity: 'DAY',
-        mode: routeDhan ? 'dhan' : 'paper'
+        mode: routeFyers ? 'fyers' : 'paper'
       };
 
-      const res = await fetch('/api/dhan/orders', {
+      const res = await fetch('/api/fyers/orders', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(payload)
@@ -514,7 +517,7 @@ class OrdersManager {
         statusMsg.textContent = 'Modifying order...';
       }
 
-      const res = await fetch(`/api/dhan/orders/${orderId}`, {
+      const res = await fetch(`/api/fyers/orders/${orderId}`, {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -555,7 +558,7 @@ class OrdersManager {
     if (!confirm(`Are you sure you want to cancel order #${orderId}?`)) return;
 
     try {
-      const res = await fetch(`/api/dhan/orders/${orderId}`, {
+      const res = await fetch(`/api/fyers/orders/${orderId}`, {
         method: 'DELETE'
       });
       const data = await res.json();

@@ -490,170 +490,158 @@ def fetch_yfinance_klines(symbol: str, interval: str, limit: int = 500) -> Optio
         return None
 
 
-# ================= DHANHQ INTEGRATION =================
-DHAN_CONFIG_PATH = BASE_DIR / "dhan_config.json"
-DHAN_MAP_PATH = STATIC_DIR / "data" / "dhan_security_map.json"
+# ================= FYERS API v3 INTEGRATION =================
+FYERS_CONFIG_PATH = BASE_DIR / "fyers_config.json"
 
-dhan_security_map = {}
-if DHAN_MAP_PATH.exists():
-    try:
-        with open(DHAN_MAP_PATH, "r", encoding="utf-8") as f:
-            dhan_security_map = json.load(f)
-    except Exception as e:
-        print(f"Error loading Dhan security map: {e}")
+_fyers_client_cache = None
+_fyers_client_token = ""
+_fyers_client_app_id = ""
 
-_dhan_client_cache = None
-_dhan_client_token = ""
+def to_fyers_symbol(symbol: str) -> str:
+    """Format symbol to Fyers API v3 standard (e.g. NSE:RELIANCE-EQ, NSE:NIFTY50-INDEX)."""
+    sym = symbol.upper().strip()
+    if sym.startswith("NSE:") or sym.startswith("BSE:") or sym.startswith("MCX:"):
+        return sym
 
-def get_dhan_client():
-    global _dhan_client_cache, _dhan_client_token
-    cid = ""
+    indices = {
+        "NIFTY50": "NSE:NIFTY50-INDEX",
+        "NIFTY 50": "NSE:NIFTY50-INDEX",
+        "NIFTY": "NSE:NIFTY50-INDEX",
+        "^NSEI": "NSE:NIFTY50-INDEX",
+        "BANKNIFTY": "NSE:NIFTYBANK-INDEX",
+        "NIFTY BANK": "NSE:NIFTYBANK-INDEX",
+        "^NSEBANK": "NSE:NIFTYBANK-INDEX",
+        "FINNIFTY": "NSE:FINNIFTY-INDEX",
+        "NIFTY_MID_SELECT": "NSE:MIDCPNIFTY-INDEX",
+        "MIDCPNIFTY": "NSE:MIDCPNIFTY-INDEX",
+        "NIFTYIT": "NSE:NIFTYIT-INDEX",
+        "INDIAVIX": "NSE:INDIAVIX-INDEX",
+        "SENSEX": "BSE:SENSEX-INDEX",
+        "^BSESN": "BSE:SENSEX-INDEX"
+    }
+    if sym in indices:
+        return indices[sym]
+
+    clean = sym.replace(".NS", "").replace(".BO", "").rstrip(".")
+    return f"NSE:{clean}-EQ"
+
+def get_fyers_client():
+    global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
+    app_id = ""
     tok = ""
     enabled = True
 
-    # 1. Check local dhan_config.json
-    if DHAN_CONFIG_PATH.exists():
+    # 1. Check local fyers_config.json
+    if FYERS_CONFIG_PATH.exists():
         try:
-            with open(DHAN_CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(FYERS_CONFIG_PATH, "r", encoding="utf-8") as f:
                 cfg = json.load(f)
             enabled = bool(cfg.get("enabled", True))
-            cid = str(cfg.get("client_id", "")).strip()
+            app_id = str(cfg.get("app_id", cfg.get("client_id", ""))).strip()
             tok = str(cfg.get("access_token", "")).strip()
         except Exception as e:
-            print(f"Error reading dhan_config.json: {e}")
+            print(f"Error reading fyers_config.json: {e}")
 
     # 2. Fallback to Cloud Environment Variables (for Render / Railway)
-    if not cid or not tok:
-        env_cid = os.environ.get("DHAN_CLIENT_ID", "").strip()
-        env_tok = os.environ.get("DHAN_ACCESS_TOKEN", "").strip()
-        if env_cid and env_tok:
-            cid = env_cid
+    if not app_id or not tok:
+        env_app_id = (os.environ.get("FYERS_APP_ID") or os.environ.get("FYERS_CLIENT_ID") or "").strip()
+        env_tok = os.environ.get("FYERS_ACCESS_TOKEN", "").strip()
+        if env_app_id and env_tok:
+            app_id = env_app_id
             tok = env_tok
             enabled = True
 
-    if not enabled or not cid or not tok:
+    if not enabled or not app_id or not tok:
         return None
 
     try:
-        if not cid or not tok:
-            return None
-        if _dhan_client_cache and _dhan_client_token == tok:
-            return _dhan_client_cache
-        from dhanhq import DhanContext, dhanhq
-        ctx = DhanContext(cid, tok)
-        _dhan_client_cache = dhanhq(ctx)
-        _dhan_client_token = tok
-        return _dhan_client_cache
+        if _fyers_client_cache and _fyers_client_token == tok and _fyers_client_app_id == app_id:
+            return _fyers_client_cache
+        from fyers_apiv3.fyersModel import FyersModel
+        client = FyersModel(client_id=app_id, token=tok, is_async=False, log_path=None)
+        _fyers_client_cache = client
+        _fyers_client_token = tok
+        _fyers_client_app_id = app_id
+        return _fyers_client_cache
     except Exception as e:
-        print(f"Error initializing Dhan client: {e}")
+        print(f"Error initializing Fyers client: {e}")
         return None
 
-def fetch_dhan_candles(symbol: str, interval: str, limit: int = 500) -> Optional[List[Dict[str, Any]]]:
-    client = get_dhan_client()
+def fetch_fyers_candles(symbol: str, interval: str, limit: int = 500) -> Optional[List[Dict[str, Any]]]:
+    client = get_fyers_client()
     if not client:
         return None
-    clean_sym = symbol.upper().replace(".NS", "").replace(".BO", "").rstrip(".")
-    sec_info = dhan_security_map.get(clean_sym)
-    if not sec_info:
-        return None
+    fyers_sym = to_fyers_symbol(symbol)
+    norm = normalize_interval(interval)
 
-    sec_id = str(sec_info["security_id"])
-    seg = sec_info["exchange_segment"]
-    inst = sec_info.get("instrument_type", "EQUITY")
+    int_map = {
+        "1m": "1", "2m": "2", "3m": "3", "5m": "5", "10m": "10",
+        "15m": "15", "25m": "20", "30m": "30", "1h": "60", "60m": "60",
+        "2h": "120", "4h": "240", "1d": "1D", "1w": "1D", "1M": "1D"
+    }
+    resolution = int_map.get(norm, "5")
 
     today = datetime.now()
-    from_date = (today - timedelta(days=25)).strftime("%Y-%m-%d")
     to_date = today.strftime("%Y-%m-%d")
-
-    norm = normalize_interval(interval)
-    int_map = {
-        "1m": 1, "2m": 1, "3m": 1, "5m": 5, "10m": 5, "15m": 15, "25m": 25, "30m": 15, "1h": 60, "60m": 60, "2h": 60, "4h": 60
-    }
-    dhan_interval = int_map.get(norm, 5)
+    if resolution in ["1D", "D", "Day"]:
+        from_date = (today - timedelta(days=1825)).strftime("%Y-%m-%d")
+    else:
+        from_date = (today - timedelta(days=90)).strftime("%Y-%m-%d")
 
     try:
-        if norm in ["1d", "1w", "1M"]:
-            resp = client.historical_daily_data(
-                security_id=sec_id,
-                exchange_segment=seg,
-                instrument_type=inst,
-                from_date=(today - timedelta(days=1825)).strftime("%Y-%m-%d"),
-                to_date=to_date
-            )
-        else:
-            resp = client.intraday_minute_data(
-                security_id=sec_id,
-                exchange_segment=seg,
-                instrument_type=inst,
-                from_date=from_date,
-                to_date=to_date,
-                interval=dhan_interval
-            )
-
-        if resp and resp.get("status") == "success" and "data" in resp:
-            data = resp["data"]
+        data = {
+            "symbol": fyers_sym,
+            "resolution": resolution,
+            "date_format": 1,
+            "range_from": from_date,
+            "range_to": to_date,
+            "cont_flag": 1
+        }
+        resp = client.history(data=data)
+        if resp and resp.get("s") == "ok" and "candles" in resp:
+            raw_candles = resp["candles"]
             candles = []
-            if isinstance(data, dict) and "start_Time" in data:
-                times = data.get("start_Time", [])
-                opens = data.get("open", [])
-                highs = data.get("high", [])
-                lows = data.get("low", [])
-                closes = data.get("close", [])
-                volumes = data.get("volume", [])
-                for i in range(len(times)):
-                    t = times[i]
-                    if isinstance(t, str):
-                        try:
-                            ts = int(datetime.fromisoformat(t).timestamp())
-                        except Exception:
-                            ts = int(time.time())
-                    else:
-                        ts = int(t)
-                    candles.append({
-                        "time": ts,
-                        "open": round(float(opens[i]), 2),
-                        "high": round(float(highs[i]), 2),
-                        "low": round(float(lows[i]), 2),
-                        "close": round(float(closes[i]), 2),
-                        "volume": round(float(volumes[i]), 2) if i < len(volumes) else 0
-                    })
+            for c in raw_candles:
+                candles.append({
+                    "time": int(c[0]),
+                    "open": round(float(c[1]), 2),
+                    "high": round(float(c[2]), 2),
+                    "low": round(float(c[3]), 2),
+                    "close": round(float(c[4]), 2),
+                    "volume": round(float(c[5]), 2) if len(c) > 5 else 0
+                })
             if candles:
                 return candles[-limit:]
     except Exception as e:
-        print(f"Dhan candle fetch error for {symbol}: {e}")
+        print(f"Fyers candle fetch error for {symbol} ({fyers_sym}): {e}")
     return None
 
-def fetch_dhan_quote(symbol: str) -> Optional[Dict[str, Any]]:
-    client = get_dhan_client()
+def fetch_fyers_quote(symbol: str) -> Optional[Dict[str, Any]]:
+    client = get_fyers_client()
     if not client:
         return None
-    clean_sym = symbol.upper().replace(".NS", "").replace(".BO", "").rstrip(".")
-    sec_info = dhan_security_map.get(clean_sym)
-    if not sec_info:
-        return None
-    sec_id = int(sec_info["security_id"]) if sec_info["security_id"].isdigit() else sec_info["security_id"]
-    seg = sec_info["exchange_segment"]
+    fyers_sym = to_fyers_symbol(symbol)
     try:
-        resp = client.ohlc_data(securities={seg: [sec_id]})
-        if resp and resp.get("status") == "success" and "data" in resp:
-            data = resp["data"].get(seg, {}).get(str(sec_id), {})
-            if data and "last_price" in data:
-                last_p = float(data["last_price"])
-                close_p = float(data.get("close", last_p))
-                chg = round(last_p - close_p, 2)
-                chg_pct = round((chg / close_p * 100), 2) if close_p else 0.0
+        resp = client.quotes(data={"symbols": fyers_sym})
+        if resp and resp.get("s") == "ok" and "d" in resp and len(resp["d"]) > 0:
+            d = resp["d"][0]
+            if d.get("s") == "ok" and "v" in d:
+                v = d["v"]
+                last_p = float(v.get("lp", 0))
+                chg = float(v.get("ch", 0))
+                chg_pct = float(v.get("chp", 0))
                 return {
                     "symbol": symbol.upper(),
                     "price": last_p,
                     "change": chg,
                     "changePercent": chg_pct,
-                    "high": float(data.get("high", last_p)),
-                    "low": float(data.get("low", last_p)),
-                    "volume": float(data.get("volume", 0)),
-                    "source": "dhan"
+                    "high": float(v.get("high_price", last_p)),
+                    "low": float(v.get("low_price", last_p)),
+                    "volume": float(v.get("volume", 0)),
+                    "source": "fyers"
                 }
     except Exception as e:
-        print(f"Dhan quote fetch error for {symbol}: {e}")
+        print(f"Fyers quote fetch error for {symbol} ({fyers_sym}): {e}")
     return None
 
 # ================= REST API ROUTES =================
@@ -682,10 +670,10 @@ def get_history(
         if candles:
             source = "binance"
     else:
-        # Check DhanHQ live historical candle feed
-        candles = fetch_dhan_candles(symbol_upper, norm_interval, limit)
+        # Check Fyers live historical candle feed
+        candles = fetch_fyers_candles(symbol_upper, norm_interval, limit)
         if candles:
-            source = "dhan"
+            source = "fyers"
 
     if not candles:
         candles = fetch_yfinance_klines(symbol_upper, norm_interval, limit)
@@ -733,10 +721,10 @@ def get_quote(symbol: str = Query(..., description="Ticker symbol")):
         except Exception:
             pass
 
-    # Try DhanHQ live quote if configured
-    dhan_q = fetch_dhan_quote(symbol_upper)
-    if dhan_q:
-        return dhan_q
+    # Try Fyers live quote if configured
+    fyers_q = fetch_fyers_quote(symbol_upper)
+    if fyers_q:
+        return fyers_q
 
     # Try yfinance for stocks
     try:
@@ -775,31 +763,34 @@ def get_quote(symbol: str = Query(..., description="Ticker symbol")):
     }
 
 
-class DhanConfigRequest(BaseModel):
-    client_id: str
+class FyersConfigRequest(BaseModel):
+    app_id: str
     access_token: str
     enabled: bool = True
 
+@app.get("/api/fyers/config")
 @app.get("/api/dhan/config")
-def get_dhan_config():
-    cfg = {"enabled": False, "client_id": "", "has_token": False, "status": "Not Configured"}
-    if DHAN_CONFIG_PATH.exists():
+def get_fyers_config():
+    cfg = {"enabled": False, "app_id": "", "client_id": "", "masked_id": "", "has_token": False, "status": "Not Configured"}
+    target_path = FYERS_CONFIG_PATH
+    if target_path.exists():
         try:
-            with open(DHAN_CONFIG_PATH, "r", encoding="utf-8") as f:
+            with open(target_path, "r", encoding="utf-8") as f:
                 saved = json.load(f)
-            client_id = str(saved.get("client_id", "")).strip()
+            app_id = str(saved.get("app_id", saved.get("client_id", ""))).strip()
             token = str(saved.get("access_token", "")).strip()
             enabled = bool(saved.get("enabled", False))
             has_token = len(token) > 20
             
             status = "Not Configured"
-            if client_id and has_token:
+            if app_id and has_token:
                 status = "Connected" if enabled else "Disabled"
             
             cfg = {
                 "enabled": enabled,
-                "client_id": client_id,
-                "masked_id": (client_id[:3] + "****" + client_id[-3:]) if len(client_id) > 6 else client_id,
+                "app_id": app_id,
+                "client_id": app_id,
+                "masked_id": (app_id[:4] + "****" + app_id[-3:]) if len(app_id) > 7 else app_id,
                 "has_token": has_token,
                 "status": status
             }
@@ -807,45 +798,51 @@ def get_dhan_config():
             pass
     return cfg
 
+@app.post("/api/fyers/config")
 @app.post("/api/dhan/config")
-def save_dhan_config(req: DhanConfigRequest):
-    client_id = req.client_id.strip()
+def save_fyers_config(req: FyersConfigRequest):
+    app_id = req.app_id.strip()
     access_token = req.access_token.strip()
     enabled = req.enabled
     
     test_status = "Connected"
     error_msg = ""
     
-    if enabled and client_id and access_token:
+    if enabled and app_id and access_token:
         try:
-            from dhanhq import DhanContext, dhanhq
-            ctx = DhanContext(client_id, access_token)
-            client = dhanhq(ctx)
-            res = client.get_fund_limits()
-            if res and res.get("status") == "failure":
-                error_msg = res.get("message", "Authentication failed. Check your Client ID and Access Token.")
+            from fyers_apiv3.fyersModel import FyersModel
+            client = FyersModel(client_id=app_id, token=access_token, is_async=False, log_path=None)
+            res = client.get_profile()
+            if res and res.get("s") == "ok":
+                name = res.get("data", {}).get("name", "")
+                test_status = "Connected"
+                error_msg = f"Connected to Fyers ({name})" if name else "Connected to Fyers"
+            else:
+                msg = res.get("message") if isinstance(res, dict) else str(res)
+                error_msg = msg or "Authentication failed. Check your App ID and Access Token."
                 test_status = "Auth Failed"
         except Exception as e:
             error_msg = str(e)
             test_status = f"Error: {error_msg}"
             
     cfg = {
-        "client_id": client_id,
+        "app_id": app_id,
         "access_token": access_token,
         "enabled": enabled
     }
-    with open(DHAN_CONFIG_PATH, "w", encoding="utf-8") as f:
+    with open(FYERS_CONFIG_PATH, "w", encoding="utf-8") as f:
         json.dump(cfg, f, indent=2)
         
-    global _dhan_client_cache, _dhan_client_token
-    _dhan_client_cache = None
-    _dhan_client_token = ""
+    global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
+    _fyers_client_cache = None
+    _fyers_client_token = ""
+    _fyers_client_app_id = ""
     
     return {
         "status": "ok",
         "connection_status": test_status,
         "enabled": enabled,
-        "message": error_msg or "DhanHQ settings saved successfully"
+        "message": error_msg or "Fyers settings saved successfully"
     }
 
 @app.get("/api/watchlist")
@@ -963,9 +960,9 @@ def reset_paper_account():
     PAPER_ACCOUNT["orders"] = []
     return {"status": "ok", "account": PAPER_ACCOUNT}
 
-# ================= DHAN & UNIFIED ORDERS API =================
+# ================= FYERS & UNIFIED ORDERS API =================
 
-class DhanOrderRequest(BaseModel):
+class FyersOrderRequest(BaseModel):
     symbol: str
     transaction_type: str = "BUY"  # BUY or SELL
     quantity: int = 1
@@ -974,9 +971,9 @@ class DhanOrderRequest(BaseModel):
     price: float = 0.0
     trigger_price: float = 0.0
     validity: str = "DAY"
-    mode: str = "auto"             # "dhan", "paper", or "auto"
+    mode: str = "auto"             # "fyers", "paper", or "auto"
 
-class DhanModifyOrderRequest(BaseModel):
+class FyersModifyOrderRequest(BaseModel):
     order_id: str
     order_type: str = "LIMIT"
     quantity: int = 1
@@ -985,90 +982,112 @@ class DhanModifyOrderRequest(BaseModel):
     validity: str = "DAY"
     mode: str = "auto"
 
+@app.get("/api/fyers/orders")
 @app.get("/api/dhan/orders")
-def get_dhan_orders():
-    """Retrieve all orders from DhanHQ if connected, or virtual paper orders."""
-    client = get_dhan_client()
-    dhan_connected = client is not None
-    dhan_orders = []
+def get_fyers_orders():
+    """Retrieve all orders from Fyers if connected, or virtual paper orders."""
+    client = get_fyers_client()
+    fyers_connected = client is not None
+    fyers_orders = []
     error_msg = None
 
-    if dhan_connected:
+    if fyers_connected:
         try:
-            res = client.get_order_list()
-            if isinstance(res, dict):
-                dhan_orders = res.get("data") or []
-            elif isinstance(res, list):
-                dhan_orders = res
+            res = client.orderbook()
+            if isinstance(res, dict) and res.get("s") == "ok":
+                raw_book = res.get("orderBook") or []
+                status_map = {1: "CANCELLED", 2: "TRADED", 4: "TRANSIT", 5: "REJECTED", 6: "PENDING"}
+                for o in raw_book:
+                    st = status_map.get(o.get("status"), str(o.get("status", "UNKNOWN")))
+                    side_str = "BUY" if o.get("side") == 1 else "SELL"
+                    type_str = "MARKET" if o.get("type") == 2 else "LIMIT"
+                    clean_sym = o.get("symbol", "").replace("NSE:", "").replace("-EQ", "").replace("-INDEX", "")
+                    fyers_orders.append({
+                        "orderId": str(o.get("id")),
+                        "tradingSymbol": clean_sym,
+                        "symbol": clean_sym,
+                        "transactionType": side_str,
+                        "orderType": type_str,
+                        "productType": o.get("productType", "INTRADAY"),
+                        "quantity": o.get("qty", 0),
+                        "filled_qty": o.get("filledQty", 0),
+                        "price": o.get("limitPrice", 0),
+                        "triggerPrice": o.get("stopPrice", 0),
+                        "orderStatus": st,
+                        "orderTimestamp": o.get("orderDateTime", datetime.now().strftime("%Y-%m-%d %H:%M:%S")),
+                        "source": "fyers",
+                        "raw": o
+                    })
+            elif isinstance(res, dict) and res.get("message"):
+                error_msg = res.get("message")
         except Exception as e:
             error_msg = str(e)
-            print(f"Error fetching Dhan orders: {e}")
+            print(f"Error fetching Fyers orders: {e}")
 
     return {
         "status": "success",
-        "dhan_connected": dhan_connected,
-        "dhan_orders": dhan_orders,
+        "fyers_connected": fyers_connected,
+        "dhan_connected": fyers_connected,
+        "fyers_orders": fyers_orders,
+        "dhan_orders": fyers_orders,
         "paper_orders": PAPER_ACCOUNT.get("orders", []),
         "error": error_msg
     }
 
+@app.post("/api/fyers/orders")
 @app.post("/api/dhan/orders")
-def place_dhan_order(req: DhanOrderRequest):
-    """Place an order directly to DhanHQ or fallback to Paper Trading."""
-    client = get_dhan_client()
-    is_dhan_ready = client is not None
-    should_route_dhan = (req.mode == "dhan") or (req.mode == "auto" and is_dhan_ready)
+def place_fyers_order(req: FyersOrderRequest):
+    """Place an order directly to Fyers or fallback to Paper Trading."""
+    client = get_fyers_client()
+    is_fyers_ready = client is not None
+    should_route_fyers = (req.mode in ["fyers", "dhan"]) or (req.mode == "auto" and is_fyers_ready)
 
     clean_sym = req.symbol.upper().replace(".NS", "").replace(".BO", "").rstrip(".")
-    sec_info = dhan_security_map.get(clean_sym)
+    fyers_sym = to_fyers_symbol(req.symbol)
 
-    if should_route_dhan:
-        if not is_dhan_ready:
-            raise HTTPException(status_code=400, detail="DhanHQ client is not connected or credentials not configured.")
+    if should_route_fyers:
+        if not is_fyers_ready:
+            raise HTTPException(status_code=400, detail="Fyers client is not connected or credentials not configured.")
         
-        if not sec_info:
-            raise HTTPException(status_code=400, detail=f"Symbol '{req.symbol}' not found in Dhan security map. Please verify the symbol.")
+        if "-INDEX" in fyers_sym:
+            raise HTTPException(status_code=400, detail=f"'{req.symbol}' is an Index and cannot be traded directly as spot cash. Use an ETF (e.g. NIFTYBEES) or Paper Trading.")
 
-        sec_id = str(sec_info.get("security_id"))
-        exch_seg = sec_info.get("exchange_segment", "NSE_EQ")
-        if exch_seg == "IDX":
-            raise HTTPException(status_code=400, detail=f"'{req.symbol}' is an Index and cannot be traded directly as spot cash. Use an ETF (e.g., NIFTYBEES) or Paper Trading.")
+        fyers_side = 1 if req.transaction_type.upper() == "BUY" else -1
+        fyers_type = 2 if req.order_type.upper() == "MARKET" else 1
 
         try:
-            res = client.place_order(
-                security_id=sec_id,
-                exchange_segment=exch_seg,
-                transaction_type=req.transaction_type.upper(),
-                quantity=int(req.quantity),
-                order_type=req.order_type.upper(),
-                product_type=req.product_type.upper(),
-                price=float(req.price) if req.order_type.upper() == "LIMIT" else 0.0,
-                trigger_price=float(req.trigger_price) if req.trigger_price else 0.0,
-                validity=req.validity.upper()
-            )
-            # Check for Dhan API internal rejection
-            if isinstance(res, dict) and str(res.get("status", "")).lower() in ["failure", "error"]:
-                remarks = res.get("remarks")
-                err_msg = ""
-                if isinstance(remarks, dict):
-                    err_msg = remarks.get("error_message") or remarks.get("message") or str(remarks)
-                    if remarks.get("error_code") == "DH-905":
-                        err_msg += " (IP Restriction enabled on your Dhan token. Set IP to allow your network or 0.0.0.0 on web.dhan.co)"
-                elif remarks:
-                    err_msg = str(remarks)
-                else:
-                    err_msg = "Order rejected by Dhan exchange rules."
-                raise HTTPException(status_code=400, detail=f"Dhan rejection: {err_msg}")
+            order_data = {
+                "symbol": fyers_sym,
+                "qty": int(req.quantity),
+                "type": fyers_type,
+                "side": fyers_side,
+                "productType": req.product_type.upper() if req.product_type.upper() in ["CNC", "INTRADAY", "MARGIN"] else "INTRADAY",
+                "limitPrice": float(req.price) if fyers_type == 1 and req.price else 0.0,
+                "stopPrice": float(req.trigger_price) if req.trigger_price else 0.0,
+                "validity": req.validity.upper() if req.validity else "DAY",
+                "disclosedQty": 0,
+                "offlineOrder": False,
+                "isSliceOrder": False
+            }
+            res = client.place_order(data=order_data)
 
+            if isinstance(res, dict) and res.get("s") != "ok":
+                err_msg = res.get("message") or "Order rejected by Fyers."
+                raise HTTPException(status_code=400, detail=f"Fyers rejection: {err_msg}")
+
+            order_id = res.get("id") if isinstance(res, dict) else str(int(time.time()))
             return {
                 "status": "success",
-                "source": "dhan",
-                "message": f"Dhan order submitted for {clean_sym}",
-                "data": res
+                "source": "fyers",
+                "message": f"Fyers order submitted for {clean_sym}",
+                "data": res,
+                "orderId": order_id
             }
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"Dhan place_order error: {e}")
-            raise HTTPException(status_code=400, detail=f"Dhan error: {str(e)}")
+            print(f"Fyers place_order error: {e}")
+            raise HTTPException(status_code=400, detail=f"Fyers error: {str(e)}")
 
     # Route to Paper Trading
     exec_price = req.price if req.order_type.upper() == "LIMIT" and req.price > 0 else get_base_price_for_symbol(req.symbol)
@@ -1115,26 +1134,31 @@ def place_dhan_order(req: DhanOrderRequest):
         "data": order_record
     }
 
+@app.put("/api/fyers/orders/{order_id}")
 @app.put("/api/dhan/orders/{order_id}")
-def modify_dhan_order(order_id: str, req: DhanModifyOrderRequest):
-    """Modify an existing pending order (Dhan or Paper)."""
-    client = get_dhan_client()
+def modify_fyers_order(order_id: str, req: FyersModifyOrderRequest):
+    """Modify an existing pending order (Fyers or Paper)."""
+    client = get_fyers_client()
     if client and not order_id.startswith("paper_"):
         try:
-            res = client.modify_order(
-                order_id=str(order_id),
-                order_type=req.order_type.upper(),
-                leg_name="ENTRY_LEG",
-                quantity=int(req.quantity),
-                price=float(req.price),
-                trigger_price=float(req.trigger_price) if req.trigger_price else 0.0,
-                disclosed_quantity=0,
-                validity=req.validity.upper()
-            )
-            return {"status": "success", "source": "dhan", "data": res}
+            fyers_type = 2 if req.order_type.upper() == "MARKET" else 1
+            mod_data = {
+                "id": str(order_id),
+                "type": fyers_type,
+                "qty": int(req.quantity),
+                "limitPrice": float(req.price) if req.price else 0.0
+            }
+            if req.trigger_price:
+                mod_data["stopPrice"] = float(req.trigger_price)
+            res = client.modify_order(data=mod_data)
+            if isinstance(res, dict) and res.get("s") != "ok":
+                raise HTTPException(status_code=400, detail=res.get("message", "Fyers order modification rejected"))
+            return {"status": "success", "source": "fyers", "data": res}
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"Dhan modify_order error: {e}")
-            raise HTTPException(status_code=400, detail=f"Dhan error: {str(e)}")
+            print(f"Fyers modify_order error: {e}")
+            raise HTTPException(status_code=400, detail=f"Fyers error: {str(e)}")
 
     for o in PAPER_ACCOUNT["orders"]:
         if o.get("orderId") == order_id:
@@ -1149,17 +1173,22 @@ def modify_dhan_order(order_id: str, req: DhanModifyOrderRequest):
 
     raise HTTPException(status_code=404, detail="Order not found")
 
+@app.delete("/api/fyers/orders/{order_id}")
 @app.delete("/api/dhan/orders/{order_id}")
-def cancel_dhan_order(order_id: str):
-    """Cancel a pending order (Dhan or Paper)."""
-    client = get_dhan_client()
+def cancel_fyers_order(order_id: str):
+    """Cancel a pending order (Fyers or Paper)."""
+    client = get_fyers_client()
     if client and not order_id.startswith("paper_"):
         try:
-            res = client.cancel_order(order_id=str(order_id))
-            return {"status": "success", "source": "dhan", "data": res}
+            res = client.cancel_order(data={"id": str(order_id)})
+            if isinstance(res, dict) and res.get("s") != "ok":
+                raise HTTPException(status_code=400, detail=res.get("message", "Fyers order cancellation rejected"))
+            return {"status": "success", "source": "fyers", "data": res}
+        except HTTPException:
+            raise
         except Exception as e:
-            print(f"Dhan cancel_order error: {e}")
-            raise HTTPException(status_code=400, detail=f"Dhan error: {str(e)}")
+            print(f"Fyers cancel_order error: {e}")
+            raise HTTPException(status_code=400, detail=f"Fyers error: {str(e)}")
 
     for o in PAPER_ACCOUNT["orders"]:
         if o.get("orderId") == order_id:
@@ -1169,7 +1198,6 @@ def cancel_dhan_order(order_id: str):
             return {"status": "success", "source": "paper", "data": o}
 
     raise HTTPException(status_code=404, detail="Order not found")
-
 
 # ================= USER AUTHENTICATION & MULTI-TENANCY =================
 

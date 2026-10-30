@@ -5022,6 +5022,7 @@ body.theme-light .btn-chart-corner-auto:hover {
 
 
 
+.btn-fyers-embossed-red,
 .btn-dhan-embossed-red {
 
 
@@ -5098,6 +5099,7 @@ body.theme-light .btn-chart-corner-auto:hover {
 
 
 
+.btn-fyers-embossed-red:hover,
 .btn-dhan-embossed-red:hover {
 
 
@@ -5166,6 +5168,7 @@ body.theme-light .btn-chart-corner-auto:hover {
 
 
 
+.btn-fyers-embossed-green,
 .btn-dhan-embossed-green {
 
 
@@ -5242,6 +5245,7 @@ body.theme-light .btn-chart-corner-auto:hover {
 
 
 
+.btn-fyers-embossed-green:hover,
 .btn-dhan-embossed-green:hover {
 
 
@@ -5310,7 +5314,8 @@ body.theme-light .btn-chart-corner-auto:hover {
 
 
 
-body.theme-light .btn-dhan-embossed-red {
+body.theme-light .btn-fyers-embossed-red,
+.btn-dhan-embossed-red {
 
 
 
@@ -5330,7 +5335,8 @@ body.theme-light .btn-dhan-embossed-red {
 
 
 
-body.theme-light .btn-dhan-embossed-green {
+body.theme-light .btn-fyers-embossed-green,
+.btn-dhan-embossed-green {
 
 
 
