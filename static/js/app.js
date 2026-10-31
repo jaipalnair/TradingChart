@@ -654,45 +654,94 @@ class TradeViewApp {
     const statusDot = document.getElementById('fyers-status-dot') || document.getElementById('dhan-status-dot');
     const modalDot = document.getElementById('fyers-modal-dot') || document.getElementById('dhan-modal-dot');
     const statusText = document.getElementById('fyers-modal-status-text') || document.getElementById('dhan-modal-status-text');
+    const statusSub = document.getElementById('fyers-modal-status-sub');
+    const disconnectBtn = document.getElementById('btn-fyers-disconnect');
     const enableToggle = document.getElementById('fyers-enable-toggle') || document.getElementById('dhan-enable-toggle');
     const appIdInput = document.getElementById('fyers-app-id-input') || document.getElementById('dhan-client-id-input');
+    const secretKeyInput = document.getElementById('fyers-secret-key-input');
+    const toggleSecretBtn = document.getElementById('btn-toggle-secret');
+    const redirectUriInput = document.getElementById('fyers-redirect-uri-input');
+    const copyRedirectBtn = document.getElementById('btn-copy-redirect-modal');
+    const launchLoginBtn = document.getElementById('btn-fyers-launch-login');
+    const authCodeInput = document.getElementById('fyers-auth-code-input');
+    const exchangeCodeBtn = document.getElementById('btn-fyers-exchange-code');
     const tokenInput = document.getElementById('fyers-access-token-input') || document.getElementById('dhan-access-token-input');
     const saveMsg = document.getElementById('fyers-save-msg') || document.getElementById('dhan-save-msg');
+
+    const showMsg = (text, type = 'info') => {
+      if (!saveMsg) return;
+      saveMsg.textContent = text;
+      saveMsg.classList.remove('hidden');
+      if (type === 'success') {
+        saveMsg.className = 'p-2.5 rounded-lg text-[11px] font-semibold border bg-emerald-950/40 text-emerald-300 border-emerald-800/40 block';
+      } else if (type === 'error') {
+        saveMsg.className = 'p-2.5 rounded-lg text-[11px] font-semibold border bg-red-950/40 text-red-300 border-red-800/40 block';
+      } else {
+        saveMsg.className = 'p-2.5 rounded-lg text-[11px] font-semibold border bg-blue-950/40 text-blue-300 border-blue-800/40 block';
+      }
+    };
 
     const updateStatusUI = (cfg) => {
       const isConnected = cfg.enabled && cfg.has_token && cfg.status === 'Connected';
       if (openBtn) {
         if (isConnected) {
           openBtn.className = 'btn-fyers-embossed-green select-none shrink-0 transition';
-          openBtn.title = 'Fyers Live Feed: Connected 🟢 (Click to configure)';
+          const trader = cfg.profile?.name ? `(${cfg.profile.name})` : '';
+          openBtn.title = `Fyers Live Feed: Connected 🟢 ${trader} (Click to open Auth App)`;
         } else {
           openBtn.className = 'btn-fyers-embossed-red select-none shrink-0 transition';
-          openBtn.title = 'Fyers Account: Disconnected 🔴 (Click to connect for real-time NSE feed)';
+          openBtn.title = 'Fyers Account: Disconnected 🔴 (Click to authenticate for real-time NSE feed)';
         }
       }
       if (statusDot) {
         statusDot.className = isConnected 
-          ? 'w-2 h-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#4ade80] shrink-0' 
+          ? 'w-2 h-2 rounded-full bg-emerald-300 shadow-[0_0_8px_#4ade80] shrink-0 animate-pulse' 
           : 'w-2 h-2 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0';
       }
       if (modalDot) {
         modalDot.className = isConnected 
-          ? 'w-2.5 h-2.5 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981]' 
-          : 'w-2.5 h-2.5 rounded-full bg-gray-400';
+          ? 'w-3 h-3 rounded-full bg-emerald-400 shadow-[0_0_8px_#10b981] shrink-0 animate-pulse' 
+          : 'w-3 h-3 rounded-full bg-red-400 shadow-[0_0_8px_#f87171] shrink-0';
       }
       if (statusText) {
-        statusText.textContent = 'Status: ' + (cfg.status || (isConnected ? 'Connected' : 'Not Configured'));
-        statusText.className = isConnected ? 'font-semibold text-emerald-400' : 'font-semibold text-[#d1d4dc]';
+        if (isConnected) {
+          const name = cfg.profile?.name || 'Trader';
+          const fyId = cfg.profile?.fy_id ? `(${cfg.profile.fy_id})` : '';
+          statusText.textContent = `Status: Connected as ${name} ${fyId}`;
+          statusText.className = 'font-bold text-emerald-400 text-xs';
+        } else if (cfg.has_secret && cfg.app_id) {
+          statusText.textContent = 'Status: Ready to Login';
+          statusText.className = 'font-bold text-amber-400 text-xs';
+        } else {
+          statusText.textContent = 'Status: Disconnected';
+          statusText.className = 'font-bold text-[#d1d4dc] text-xs';
+        }
+      }
+      if (statusSub) {
+        if (isConnected) {
+          statusSub.textContent = `Active token generated: ${cfg.token_updated_at || 'Today'}. Live quotes & charts online.`;
+        } else {
+          statusSub.textContent = 'Authenticate below for zero-delay official NSE live tick feed.';
+        }
+      }
+      if (disconnectBtn) {
+        disconnectBtn.classList.toggle('hidden', !isConnected);
       }
       if (enableToggle) {
         enableToggle.checked = !!cfg.enabled;
       }
-      if (appIdInput && (cfg.app_id || cfg.client_id)) {
-        appIdInput.value = cfg.app_id || cfg.client_id;
+      if (appIdInput && cfg.app_id) {
+        appIdInput.value = cfg.app_id;
+      }
+      if (secretKeyInput && cfg.secret_key) {
+        secretKeyInput.value = cfg.secret_key;
+      }
+      if (redirectUriInput) {
+        redirectUriInput.value = cfg.redirect_uri || cfg.default_callback_url || (window.location.origin + '/api/fyers/callback');
       }
     };
 
-    // Check status on startup
+    // Initial check on load
     fetch('/api/fyers/config')
       .then(r => r.json())
       .then(cfg => updateStatusUI(cfg))
@@ -700,7 +749,7 @@ class TradeViewApp {
 
     // Open Modal
     openBtn?.addEventListener('click', () => {
-      if (saveMsg) saveMsg.textContent = '';
+      if (saveMsg) saveMsg.classList.add('hidden');
       fetch('/api/fyers/config')
         .then(r => r.json())
         .then(cfg => {
@@ -719,73 +768,203 @@ class TradeViewApp {
       b?.addEventListener('click', () => modal?.classList.add('hidden'));
     });
 
-    // Save & Connect
+    // Toggle Secret visibility
+    toggleSecretBtn?.addEventListener('click', () => {
+      if (!secretKeyInput) return;
+      secretKeyInput.type = secretKeyInput.type === 'password' ? 'text' : 'password';
+    });
+
+    // Copy Redirect URI
+    copyRedirectBtn?.addEventListener('click', () => {
+      const uri = redirectUriInput?.value?.trim() || '';
+      if (!uri) return;
+      navigator.clipboard.writeText(uri).then(() => {
+        const span = copyRedirectBtn.querySelector('span');
+        if (span) span.textContent = 'Copied! ✓';
+        setTimeout(() => {
+          if (span) span.textContent = 'Copy URI';
+        }, 2000);
+      });
+    });
+
+    // 1-Click Launch Fyers Login
+    launchLoginBtn?.addEventListener('click', async () => {
+      const appId = appIdInput?.value?.trim() || '';
+      const secret = secretKeyInput?.value?.trim() || '';
+      const redirectUri = redirectUriInput?.value?.trim() || (window.location.origin + '/api/fyers/callback');
+
+      if (!appId || !secret) {
+        showMsg('Please provide both App ID and Secret Key from myapi.fyers.in first.', 'error');
+        return;
+      }
+
+      launchLoginBtn.disabled = true;
+      const originalText = launchLoginBtn.innerHTML;
+      launchLoginBtn.innerHTML = '<span>Opening Fyers...</span>';
+      showMsg('Generating official Fyers OAuth authorization URL...', 'info');
+
+      try {
+        const resp = await fetch('/api/fyers/auth-url', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ app_id: appId, secret_key: secret, redirect_uri: redirectUri })
+        });
+        const res = await resp.json();
+        if (res.status === 'ok') {
+          showMsg('Fyers login window opened. Complete 2FA login in the popup window...', 'info');
+          const popup = window.open(res.auth_url, 'fyers_oauth_popup', 'width=620,height=750,menubar=no,toolbar=no');
+          if (!popup || popup.closed || typeof popup.closed === 'undefined') {
+            showMsg('Popup was blocked by your browser. Please allow popups or use Section 3 to paste the auth code.', 'error');
+          }
+        } else {
+          showMsg(res.message || 'Failed to generate Fyers login URL', 'error');
+        }
+      } catch (err) {
+        showMsg('Network error: ' + err.message, 'error');
+      } finally {
+        launchLoginBtn.disabled = false;
+        launchLoginBtn.innerHTML = originalText;
+      }
+    });
+
+    // Exchange Auth Code / Redirect URL
+    exchangeCodeBtn?.addEventListener('click', async () => {
+      const code = authCodeInput?.value?.trim() || '';
+      const appId = appIdInput?.value?.trim() || '';
+      const secret = secretKeyInput?.value?.trim() || '';
+      const redirectUri = redirectUriInput?.value?.trim() || (window.location.origin + '/api/fyers/callback');
+
+      if (!code) {
+        showMsg('Please paste the auth_code or full redirected browser URL first.', 'error');
+        return;
+      }
+
+      exchangeCodeBtn.disabled = true;
+      const originalText = exchangeCodeBtn.innerHTML;
+      exchangeCodeBtn.innerHTML = '<span>Exchanging...</span>';
+      showMsg('Validating auth code with Fyers API v3...', 'info');
+
+      try {
+        const resp = await fetch('/api/fyers/exchange-token', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ auth_code: code, app_id: appId, secret_key: secret, redirect_uri: redirectUri })
+        });
+        const res = await resp.json();
+        if (res.status === 'ok') {
+          showMsg(res.message, 'success');
+          this.showToast('🟢 ' + res.message);
+          if (authCodeInput) authCodeInput.value = '';
+
+          const cfgResp = await fetch('/api/fyers/config');
+          const cfg = await cfgResp.json();
+          updateStatusUI(cfg);
+
+          // Reload all charts to pull live Fyers candles
+          if (window.multiChartGrid) {
+            window.multiChartGrid.charts.forEach(c => c.loadData());
+          }
+
+          setTimeout(() => {
+            modal?.classList.add('hidden');
+          }, 1500);
+        } else {
+          showMsg(res.message || 'Token exchange failed', 'error');
+        }
+      } catch (err) {
+        showMsg('Exchange error: ' + err.message, 'error');
+      } finally {
+        exchangeCodeBtn.disabled = false;
+        exchangeCodeBtn.innerHTML = originalText;
+      }
+    });
+
+    // Disconnect Account
+    disconnectBtn?.addEventListener('click', async () => {
+      if (!confirm('Are you sure you want to disconnect your Fyers live feed?')) return;
+      try {
+        await fetch('/api/fyers/disconnect', { method: 'POST' });
+        showMsg('Fyers account disconnected.', 'info');
+        this.showToast('Fyers Disconnected');
+        const cfgResp = await fetch('/api/fyers/config');
+        const cfg = await cfgResp.json();
+        updateStatusUI(cfg);
+      } catch (err) {
+        showMsg('Disconnect failed: ' + err.message, 'error');
+      }
+    });
+
+    // Direct Manual Access Token Save
     saveBtn?.addEventListener('click', async () => {
       const appId = appIdInput?.value?.trim() || '';
+      const secret = secretKeyInput?.value?.trim() || '';
+      const redirectUri = redirectUriInput?.value?.trim() || '';
       const token = tokenInput?.value?.trim() || '';
       const enabled = enableToggle?.checked ?? true;
 
       if (!appId) {
-        if (saveMsg) {
-          saveMsg.textContent = 'Please enter your Fyers App ID (e.g. XC12345-100)';
-          saveMsg.className = 'text-[11px] text-[#f23645]';
-        }
+        showMsg('Please enter your Fyers App ID (e.g. XC12345-100)', 'error');
         return;
       }
 
       saveBtn.disabled = true;
       const originalText = saveBtn.innerHTML;
       saveBtn.innerHTML = '<span>Verifying...</span>';
-      if (saveMsg) {
-        saveMsg.textContent = 'Testing connection with Fyers API...';
-        saveMsg.className = 'text-[11px] text-amber-400';
-      }
+      showMsg('Verifying access token with Fyers Profile API...', 'info');
 
       try {
         const resp = await fetch('/api/fyers/config', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ app_id: appId, access_token: token, enabled: enabled })
+          body: JSON.stringify({ app_id: appId, secret_key: secret, redirect_uri: redirectUri, access_token: token, enabled: enabled })
         });
         const res = await resp.json();
         if (res.status === 'ok') {
           const isSuccess = res.connection_status === 'Connected';
-          if (saveMsg) {
-            saveMsg.textContent = isSuccess ? '🟢 Connected to Fyers!' : res.connection_status;
-            saveMsg.className = isSuccess ? 'text-[11px] text-emerald-400 font-semibold' : 'text-[11px] text-amber-400';
-          }
+          showMsg(isSuccess ? '🟢 Connected to Fyers Live Feed!' : res.connection_status, isSuccess ? 'success' : 'error');
           this.showToast(isSuccess ? '🟢 Fyers Live Feed Connected!' : 'Fyers Saved: ' + res.connection_status);
-          
-          // Refresh status
+
           const cfgResp = await fetch('/api/fyers/config');
           const cfg = await cfgResp.json();
           updateStatusUI(cfg);
 
-          // Clear token input for security
           if (tokenInput) tokenInput.value = '';
 
-          setTimeout(() => {
-            modal?.classList.add('hidden');
-          }, 1200);
-
-          // Reload all charts to pull Fyers data
-          if (window.multiChartGrid) {
-            window.multiChartGrid.charts.forEach(c => c.loadData());
+          if (isSuccess) {
+            setTimeout(() => modal?.classList.add('hidden'), 1200);
+            if (window.multiChartGrid) {
+              window.multiChartGrid.charts.forEach(c => c.loadData());
+            }
           }
         } else {
-          if (saveMsg) {
-            saveMsg.textContent = res.message || 'Save failed';
-            saveMsg.className = 'text-[11px] text-[#f23645]';
-          }
+          showMsg(res.message || 'Save failed', 'error');
         }
       } catch (err) {
-        if (saveMsg) {
-          saveMsg.textContent = 'Failed to connect: ' + err.message;
-          saveMsg.className = 'text-[11px] text-[#f23645]';
-        }
+        showMsg('Failed to connect: ' + err.message, 'error');
       } finally {
         saveBtn.disabled = false;
         saveBtn.innerHTML = originalText;
+      }
+    });
+
+    // Cross-window message listener for OAuth Popup completion
+    window.addEventListener('message', async (e) => {
+      if (e.data && e.data.type === 'FYERS_AUTH_SUCCESS') {
+        const traderName = e.data.profile?.name || 'Trader';
+        this.showToast(`🟢 Fyers Connected: Welcome, ${traderName}!`);
+        showMsg(`🎉 Successfully connected via 1-Click OAuth as ${traderName}!`, 'success');
+
+        const cfgResp = await fetch('/api/fyers/config');
+        const cfg = await cfgResp.json();
+        updateStatusUI(cfg);
+
+        if (window.multiChartGrid) {
+          window.multiChartGrid.charts.forEach(c => c.loadData());
+        }
+
+        setTimeout(() => {
+          modal?.classList.add('hidden');
+        }, 1500);
       }
     });
   }

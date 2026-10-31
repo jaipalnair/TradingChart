@@ -17,6 +17,7 @@ from pathlib import Path
 
 from fastapi import FastAPI, Query, HTTPException, WebSocket, WebSocketDisconnect, Request, Header, Depends
 import database
+import fyers_auth
 from fastapi.staticfiles import StaticFiles
 from fastapi.responses import HTMLResponse, JSONResponse, FileResponse
 from fastapi.middleware.cors import CORSMiddleware
@@ -763,58 +764,262 @@ def get_quote(symbol: str = Query(..., description="Ticker symbol")):
     }
 
 
-class FyersConfigRequest(BaseModel):
-    app_id: str
-    access_token: str
-    enabled: bool = True
-
+# ================= FYERS API v3 OAUTH & AUTHENTICATION ENDPOINTS =================
 @app.get("/api/fyers/config")
 @app.get("/api/dhan/config")
-def get_fyers_config():
-    cfg = {"enabled": False, "app_id": "", "client_id": "", "masked_id": "", "has_token": False, "status": "Not Configured"}
-    target_path = FYERS_CONFIG_PATH
-    if target_path.exists():
-        try:
-            with open(target_path, "r", encoding="utf-8") as f:
-                saved = json.load(f)
-            app_id = str(saved.get("app_id", saved.get("client_id", ""))).strip()
-            token = str(saved.get("access_token", "")).strip()
-            enabled = bool(saved.get("enabled", False))
-            has_token = len(token) > 20
-            
-            status = "Not Configured"
-            if app_id and has_token:
-                status = "Connected" if enabled else "Disabled"
-            
-            cfg = {
-                "enabled": enabled,
-                "app_id": app_id,
-                "client_id": app_id,
-                "masked_id": (app_id[:4] + "****" + app_id[-3:]) if len(app_id) > 7 else app_id,
-                "has_token": has_token,
-                "status": status
-            }
-        except Exception:
-            pass
-    return cfg
+def get_fyers_config(request: Request):
+    host = request.headers.get("host", "127.0.0.1:8000")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
+    default_callback = f"{scheme}://{host}/api/fyers/callback"
+
+    saved = fyers_auth.load_fyers_config()
+    app_id = str(saved.get("app_id", saved.get("client_id", ""))).strip()
+    token = str(saved.get("access_token", "")).strip()
+    secret_key = str(saved.get("secret_key", "")).strip()
+    redirect_uri = str(saved.get("redirect_uri", "")).strip() or default_callback
+    enabled = bool(saved.get("enabled", False))
+    has_token = len(token) > 20
+    has_secret = len(secret_key) > 5
+
+    status = "Not Configured"
+    if app_id and has_token:
+        status = "Connected" if enabled else "Disabled"
+    elif app_id and has_secret:
+        status = "Ready to Login"
+
+    profile = saved.get("profile", {})
+    masked_secret = (secret_key[:3] + "••••••••" + secret_key[-2:]) if len(secret_key) > 6 else ("••••••••" if secret_key else "")
+
+    return {
+        "enabled": enabled,
+        "app_id": app_id,
+        "client_id": app_id,
+        "masked_id": (app_id[:4] + "****" + app_id[-3:]) if len(app_id) > 7 else app_id,
+        "secret_key": secret_key,
+        "masked_secret": masked_secret,
+        "has_secret": has_secret,
+        "redirect_uri": redirect_uri,
+        "default_callback_url": default_callback,
+        "has_token": has_token,
+        "status": status,
+        "profile": profile,
+        "token_updated_at": saved.get("token_updated_at", "")
+    }
+
+@app.post("/api/fyers/credentials")
+def save_fyers_credentials(req: fyers_auth.FyersCredentialsRequest):
+    saved = fyers_auth.load_fyers_config()
+    saved["app_id"] = req.app_id.strip()
+    if req.secret_key:
+        saved["secret_key"] = req.secret_key.strip()
+    if req.redirect_uri:
+        saved["redirect_uri"] = req.redirect_uri.strip()
+    saved["enabled"] = req.enabled
+    fyers_auth.save_fyers_config(saved)
+    return {"status": "ok", "message": "Fyers App credentials saved"}
+
+@app.post("/api/fyers/auth-url")
+def get_fyers_auth_url(req: fyers_auth.FyersAuthUrlRequest, request: Request):
+    saved = fyers_auth.load_fyers_config()
+    app_id = (req.app_id or saved.get("app_id", "")).strip()
+    secret_key = (req.secret_key or saved.get("secret_key", "")).strip()
+
+    host = request.headers.get("host", "127.0.0.1:8000")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
+    default_redirect = f"{scheme}://{host}/api/fyers/callback"
+    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or default_redirect).strip()
+
+    if not app_id:
+        return {"status": "error", "message": "Fyers App ID is required. Copy it from myapi.fyers.in"}
+    if not secret_key:
+        return {"status": "error", "message": "Fyers Secret Key is required. Copy it from myapi.fyers.in"}
+
+    saved["app_id"] = app_id
+    saved["secret_key"] = secret_key
+    saved["redirect_uri"] = redirect_uri
+    fyers_auth.save_fyers_config(saved)
+
+    try:
+        from fyers_apiv3 import fyersModel
+        session = fyersModel.SessionModel(
+            client_id=app_id,
+            secret_key=secret_key,
+            redirect_uri=redirect_uri,
+            response_type="code",
+            grant_type="authorization_code"
+        )
+        auth_url = session.generate_authcode()
+        return {
+            "status": "ok",
+            "auth_url": auth_url,
+            "redirect_uri": redirect_uri,
+            "app_id": app_id
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Failed to generate Fyers login URL: {str(e)}"}
+
+@app.post("/api/fyers/exchange-token")
+def exchange_fyers_token(req: fyers_auth.FyersExchangeTokenRequest, request: Request):
+    raw_code = req.auth_code.strip()
+    if not raw_code:
+        return {"status": "error", "message": "Auth code or redirect URL is required."}
+
+    clean_code = fyers_auth.extract_fyers_code(raw_code)
+
+    saved = fyers_auth.load_fyers_config()
+    app_id = (req.app_id or saved.get("app_id", "")).strip()
+    secret_key = (req.secret_key or saved.get("secret_key", "")).strip()
+
+    host = request.headers.get("host", "127.0.0.1:8000")
+    scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
+    default_redirect = f"{scheme}://{host}/api/fyers/callback"
+    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or default_redirect).strip()
+
+    if not app_id or not secret_key:
+        return {"status": "error", "message": "App ID and Secret Key are required to exchange token."}
+
+    try:
+        from fyers_apiv3 import fyersModel
+        session = fyersModel.SessionModel(
+            client_id=app_id,
+            secret_key=secret_key,
+            redirect_uri=redirect_uri,
+            response_type="code",
+            grant_type="authorization_code"
+        )
+        session.set_token(clean_code)
+        token_res = session.generate_token()
+
+        if not token_res or token_res.get("s") != "ok":
+            err_msg = token_res.get("message") if isinstance(token_res, dict) else str(token_res)
+            return {"status": "error", "message": f"Fyers Token Generation Failed: {err_msg}"}
+
+        access_token = token_res.get("access_token")
+        if not access_token:
+            return {"status": "error", "message": "No access token returned by Fyers."}
+
+        client = fyersModel.FyersModel(client_id=app_id, token=access_token, is_async=False, log_path=None)
+        profile_res = client.get_profile()
+        profile_data = profile_res.get("data", {}) if (profile_res and profile_res.get("s") == "ok") else {}
+
+        saved["app_id"] = app_id
+        saved["secret_key"] = secret_key
+        saved["redirect_uri"] = redirect_uri
+        saved["access_token"] = access_token
+        saved["enabled"] = True
+        saved["profile"] = profile_data
+        saved["token_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        fyers_auth.save_fyers_config(saved)
+
+        global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
+        _fyers_client_cache = None
+        _fyers_client_token = ""
+        _fyers_client_app_id = ""
+
+        return {
+            "status": "ok",
+            "message": f"Successfully connected to Fyers! Welcome, {profile_data.get('name', 'Trader')}.",
+            "profile": profile_data,
+            "access_token_masked": access_token[:8] + "..." + access_token[-6:]
+        }
+    except Exception as e:
+        return {"status": "error", "message": f"Token exchange error: {str(e)}"}
+
+@app.get("/api/fyers/callback", response_class=HTMLResponse)
+def fyers_callback(
+    code: Optional[str] = None,
+    auth_code: Optional[str] = None,
+    s: Optional[str] = None,
+    state: Optional[str] = None,
+    request: Request = None
+):
+    received_code = code or auth_code
+    if not received_code:
+        return HTMLResponse(content=fyers_auth.render_callback_error("No authorization code received in callback URL."), status_code=400)
+
+    saved = fyers_auth.load_fyers_config()
+    app_id = saved.get("app_id", "").strip()
+    secret_key = saved.get("secret_key", "").strip()
+    redirect_uri = saved.get("redirect_uri", "").strip()
+
+    if not redirect_uri and request:
+        host = request.headers.get("host", "127.0.0.1:8000")
+        scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
+        redirect_uri = f"{scheme}://{host}/api/fyers/callback"
+
+    if not app_id or not secret_key:
+        return HTMLResponse(content=fyers_auth.render_callback_error("Missing Fyers App ID or Secret Key on server. Please configure credentials in settings."), status_code=400)
+
+    try:
+        from fyers_apiv3 import fyersModel
+        session = fyersModel.SessionModel(
+            client_id=app_id,
+            secret_key=secret_key,
+            redirect_uri=redirect_uri,
+            response_type="code",
+            grant_type="authorization_code"
+        )
+        session.set_token(received_code)
+        token_res = session.generate_token()
+
+        if not token_res or token_res.get("s") != "ok":
+            msg = token_res.get("message") if isinstance(token_res, dict) else str(token_res)
+            return HTMLResponse(content=fyers_auth.render_callback_error(f"Fyers Token Generation Error: {msg}"), status_code=400)
+
+        access_token = token_res.get("access_token")
+        client = fyersModel.FyersModel(client_id=app_id, token=access_token, is_async=False, log_path=None)
+        profile_res = client.get_profile()
+        profile_data = profile_res.get("data", {}) if (profile_res and profile_res.get("s") == "ok") else {}
+
+        saved["access_token"] = access_token
+        saved["enabled"] = True
+        saved["profile"] = profile_data
+        saved["token_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        fyers_auth.save_fyers_config(saved)
+
+        global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
+        _fyers_client_cache = None
+        _fyers_client_token = ""
+        _fyers_client_app_id = ""
+
+        return HTMLResponse(content=fyers_auth.render_callback_success(profile_data))
+    except Exception as e:
+        return HTMLResponse(content=fyers_auth.render_callback_error(str(e)), status_code=500)
+
+@app.post("/api/fyers/disconnect")
+def disconnect_fyers():
+    saved = fyers_auth.load_fyers_config()
+    saved["access_token"] = ""
+    saved["profile"] = {}
+    saved["enabled"] = False
+    fyers_auth.save_fyers_config(saved)
+
+    global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
+    _fyers_client_cache = None
+    _fyers_client_token = ""
+    _fyers_client_app_id = ""
+
+    return {"status": "ok", "message": "Fyers account disconnected."}
 
 @app.post("/api/fyers/config")
 @app.post("/api/dhan/config")
-def save_fyers_config(req: FyersConfigRequest):
+def save_fyers_config(req: fyers_auth.FyersConfigRequest):
     app_id = req.app_id.strip()
     access_token = req.access_token.strip()
     enabled = req.enabled
-    
+
     test_status = "Connected"
     error_msg = ""
-    
+    profile_data = {}
+
     if enabled and app_id and access_token:
         try:
-            from fyers_apiv3.fyersModel import FyersModel
+            from fyers_apiv3 import fyersModel
             client = FyersModel(client_id=app_id, token=access_token, is_async=False, log_path=None)
             res = client.get_profile()
             if res and res.get("s") == "ok":
-                name = res.get("data", {}).get("name", "")
+                profile_data = res.get("data", {})
+                name = profile_data.get("name", "")
                 test_status = "Connected"
                 error_msg = f"Connected to Fyers ({name})" if name else "Connected to Fyers"
             else:
@@ -824,26 +1029,37 @@ def save_fyers_config(req: FyersConfigRequest):
         except Exception as e:
             error_msg = str(e)
             test_status = f"Error: {error_msg}"
-            
-    cfg = {
-        "app_id": app_id,
-        "access_token": access_token,
-        "enabled": enabled
-    }
-    with open(FYERS_CONFIG_PATH, "w", encoding="utf-8") as f:
-        json.dump(cfg, f, indent=2)
-        
+
+    saved = fyers_auth.load_fyers_config()
+    saved["app_id"] = app_id
+    saved["access_token"] = access_token
+    saved["enabled"] = enabled
+    if req.secret_key:
+        saved["secret_key"] = req.secret_key.strip()
+    if req.redirect_uri:
+        saved["redirect_uri"] = req.redirect_uri.strip()
+    if profile_data:
+        saved["profile"] = profile_data
+        saved["token_updated_at"] = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+
+    fyers_auth.save_fyers_config(saved)
+
     global _fyers_client_cache, _fyers_client_token, _fyers_client_app_id
     _fyers_client_cache = None
     _fyers_client_token = ""
     _fyers_client_app_id = ""
-    
+
     return {
         "status": "ok",
         "connection_status": test_status,
         "enabled": enabled,
+        "profile": profile_data,
         "message": error_msg or "Fyers settings saved successfully"
     }
+
+@app.get("/fyers-auth", response_class=HTMLResponse)
+def fyers_auth_standalone_page():
+    return HTMLResponse(content=fyers_auth.render_fyers_auth_standalone())
 
 @app.get("/api/watchlist")
 def get_watchlist():
