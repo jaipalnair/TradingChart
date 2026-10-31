@@ -14,6 +14,7 @@ from pydantic import BaseModel
 
 BASE_DIR = Path(__file__).resolve().parent
 FYERS_CONFIG_PATH = BASE_DIR / "fyers_config.json"
+STANDARD_FYERS_REDIRECT_URI = "https://trade.fyers.in/api-login/redirect-uri/index.html"
 
 # In-memory client cache
 _cached_fyers_client = None
@@ -264,14 +265,19 @@ def render_fyers_auth_standalone() -> str:
         </div>
 
         <div>
-          <label class="block text-[11px] text-[#848e9c] mb-1 flex justify-between items-center">
-            <span>Redirect URI (Configured in your Fyers Dashboard)</span>
-            <button id="btn-copy-redirect" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1">
-              <i class="fa-regular fa-copy"></i> Copy URI
-            </button>
-          </label>
-          <input type="text" id="fyers-redirect-uri" class="w-full bg-[#0d1017] border border-[#2a2e39] rounded-lg px-3 py-2 text-xs text-gray-300 font-mono text-[11px]">
-          <p class="text-[10px] text-gray-500 mt-1">Make sure this exact URL is saved under 'Redirect URI' in your Fyers Developer Dashboard.</p>
+          <div class="flex justify-between items-center mb-1">
+            <label class="text-[11px] text-[#848e9c]">Redirect URI (Configured in your Fyers Dashboard)</label>
+            <div class="flex items-center space-x-1.5">
+              <button type="button" id="btn-use-standard-uri" class="text-[10px] text-blue-400 hover:text-blue-300 px-2 py-0.5 rounded bg-blue-950/40 border border-blue-800/40 transition font-medium cursor-pointer">
+                Standard Fyers URL
+              </button>
+              <button type="button" id="btn-copy-redirect" class="text-[10px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold cursor-pointer">
+                <i class="fa-regular fa-copy"></i> Copy URI
+              </button>
+            </div>
+          </div>
+          <input type="text" id="fyers-redirect-uri" value="https://trade.fyers.in/api-login/redirect-uri/index.html" class="w-full bg-[#0d1017] border border-[#2a2e39] rounded-lg px-3 py-2 text-xs text-white font-mono text-[11px]">
+          <p class="text-[10px] text-gray-400 mt-1">Official Fyers Redirect URL: <code class="text-amber-400 font-mono select-all">https://trade.fyers.in/api-login/redirect-uri/index.html</code> (Matches your Fyers Developer Dashboard App).</p>
         </div>
       </div>
 
@@ -336,7 +342,7 @@ def render_fyers_auth_standalone() -> str:
         const cfg = await r.json();
         if (cfg.app_id) appEl.appId.value = cfg.app_id;
         if (cfg.secret_key) appEl.secretKey.value = cfg.secret_key;
-        appEl.redirectUri.value = cfg.redirect_uri || cfg.default_callback_url || (window.location.origin + '/api/fyers/callback');
+        appEl.redirectUri.value = cfg.redirect_uri || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
 
         const isConnected = cfg.enabled && cfg.has_token && cfg.status === 'Connected';
         if (isConnected) {

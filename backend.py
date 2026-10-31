@@ -764,7 +764,8 @@ def get_quote(symbol: str = Query(..., description="Ticker symbol")):
     }
 
 
-# ================= FYERS API v3 OAUTH & AUTHENTICATION ENDPOINTS =================
+# ================= FYERS API v3 OAUTH & AUTHENTICATION ENDPOINTS ================
+STANDARD_FYERS_REDIRECT_URI = "https://trade.fyers.in/api-login/redirect-uri/index.html"
 @app.get("/api/fyers/config")
 @app.get("/api/dhan/config")
 def get_fyers_config(request: Request):
@@ -776,7 +777,7 @@ def get_fyers_config(request: Request):
     app_id = str(saved.get("app_id", saved.get("client_id", ""))).strip()
     token = str(saved.get("access_token", "")).strip()
     secret_key = str(saved.get("secret_key", "")).strip()
-    redirect_uri = str(saved.get("redirect_uri", "")).strip() or default_callback
+    redirect_uri = str(saved.get("redirect_uri", "")).strip() or STANDARD_FYERS_REDIRECT_URI
     enabled = bool(saved.get("enabled", False))
     has_token = len(token) > 20
     has_secret = len(secret_key) > 5
@@ -799,6 +800,7 @@ def get_fyers_config(request: Request):
         "masked_secret": masked_secret,
         "has_secret": has_secret,
         "redirect_uri": redirect_uri,
+        "standard_fyers_redirect_url": STANDARD_FYERS_REDIRECT_URI,
         "default_callback_url": default_callback,
         "has_token": has_token,
         "status": status,
@@ -827,7 +829,7 @@ def get_fyers_auth_url(req: fyers_auth.FyersAuthUrlRequest, request: Request):
     host = request.headers.get("host", "127.0.0.1:8000")
     scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
     default_redirect = f"{scheme}://{host}/api/fyers/callback"
-    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or default_redirect).strip()
+    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or STANDARD_FYERS_REDIRECT_URI).strip()
 
     if not app_id:
         return {"status": "error", "message": "Fyers App ID is required. Copy it from myapi.fyers.in"}
@@ -873,7 +875,7 @@ def exchange_fyers_token(req: fyers_auth.FyersExchangeTokenRequest, request: Req
     host = request.headers.get("host", "127.0.0.1:8000")
     scheme = "https" if request.headers.get("x-forwarded-proto") == "https" or "render.com" in host else "http"
     default_redirect = f"{scheme}://{host}/api/fyers/callback"
-    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or default_redirect).strip()
+    redirect_uri = (req.redirect_uri or saved.get("redirect_uri", "") or STANDARD_FYERS_REDIRECT_URI).strip()
 
     if not app_id or not secret_key:
         return {"status": "error", "message": "App ID and Secret Key are required to exchange token."}

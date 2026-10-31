@@ -1767,12 +1767,20 @@
           <div>
             <div class="flex justify-between items-center mb-1">
               <label class="text-[10.5px] text-[#848e9c]">Redirect URI (Configured at myapi.fyers.in)</label>
-              <button type="button" id="btn-copy-redirect-modal" class="text-[10.5px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold">
-                <i data-lucide="copy" class="w-3 h-3"></i> <span>Copy URI</span>
-              </button>
+              <div class="flex items-center space-x-1.5">
+                <button type="button" id="btn-set-standard-redirect" class="text-[10px] text-blue-400 hover:text-blue-300 px-1.5 py-0.5 rounded bg-blue-950/40 border border-blue-800/40 transition font-medium cursor-pointer" title="Use official Fyers standard redirect URI">
+                  Standard Fyers URI
+                </button>
+                <button type="button" id="btn-copy-redirect-modal" class="text-[10.5px] text-emerald-400 hover:text-emerald-300 flex items-center gap-1 font-semibold cursor-pointer">
+                  <i data-lucide="copy" class="w-3 h-3"></i> <span>Copy URI</span>
+                </button>
+              </div>
             </div>
-            <input type="text" id="fyers-redirect-uri-input" class="w-full bg-[#0d1017] border border-[#2a2e39] rounded px-2.5 py-1.5 text-[11px] text-gray-300 font-mono">
-            <p class="text-[10px] text-gray-500 mt-0.5">Ensure this exact URL is saved under 'Redirect URI' in your Fyers developer app.</p>
+            <input type="text" id="fyers-redirect-uri-input" value="https://trade.fyers.in/api-login/redirect-uri/index.html" class="w-full bg-[#0d1017] border border-[#2a2e39] rounded px-2.5 py-1.5 text-[11px] text-gray-300 font-mono">
+            <p class="text-[10.5px] text-gray-400 mt-1 flex items-center gap-1">
+              <span class="text-amber-400 font-semibold">Fyers Standard URL:</span>
+              <code class="text-amber-300 font-mono bg-black/40 px-1.5 py-0.5 rounded text-[10px] select-all">https://trade.fyers.in/api-login/redirect-uri/index.html</code>
+            </p>
           </div>
         </div>
 
@@ -1795,9 +1803,9 @@
             <span class="w-4 h-4 rounded-full bg-[#2962ff]/20 text-[#2962ff] text-[10px] flex items-center justify-center font-bold">3</span>
             Manual Auth Code Exchange
           </span>
-          <p class="text-[10.5px] text-[#848e9c]">If popup was blocked or using standard Fyers URL (<code>trade.fyers.in/api-login/...</code>), paste the full URL or code:</p>
+          <p class="text-[10.5px] text-[#848e9c]">When using <code>https://trade.fyers.in/api-login/redirect-uri/index.html</code>, after logging in at Fyers, paste the full URL or code from the browser address bar:</p>
           <div class="flex gap-2">
-            <input type="text" id="fyers-auth-code-input" placeholder="Paste full redirected URL or auth_code..." class="flex-1 bg-[#0d1017] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#2962ff] font-mono">
+            <input type="text" id="fyers-auth-code-input" placeholder="Paste full redirected URL (https://trade.fyers.in/...) or auth_code..." class="flex-1 bg-[#0d1017] border border-[#2a2e39] rounded px-2.5 py-1.5 text-xs text-white placeholder-gray-600 focus:outline-none focus:border-[#2962ff] font-mono">
             <button id="btn-fyers-exchange-code" class="px-3.5 py-1.5 rounded text-xs font-bold bg-[#2962ff] hover:bg-[#1e53e5] text-white transition shrink-0 flex items-center gap-1">
               <span>Generate Token</span>
             </button>
@@ -4079,7 +4087,7 @@
 
 
 
-  <script src="/static/js/orders-manager.js?v=2.29"></script>
+  <script src="/static/js/orders-manager.js?v=2.30"></script>
 
 
 
@@ -4087,7 +4095,7 @@
 
 
 
-  <script src="/static/js/app.js?v=2.29"></script>
+  <script src="/static/js/app.js?v=2.30"></script>
 
 
 

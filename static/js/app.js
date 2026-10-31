@@ -737,7 +737,7 @@ class TradeViewApp {
         secretKeyInput.value = cfg.secret_key;
       }
       if (redirectUriInput) {
-        redirectUriInput.value = cfg.redirect_uri || cfg.default_callback_url || (window.location.origin + '/api/fyers/callback');
+        redirectUriInput.value = cfg.redirect_uri || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
       }
     };
 
@@ -774,6 +774,15 @@ class TradeViewApp {
       secretKeyInput.type = secretKeyInput.type === 'password' ? 'text' : 'password';
     });
 
+    // Set Standard Fyers Redirect URI
+    const setStandardRedirectBtn = document.getElementById('btn-set-standard-redirect');
+    setStandardRedirectBtn?.addEventListener('click', () => {
+      if (redirectUriInput) {
+        redirectUriInput.value = 'https://trade.fyers.in/api-login/redirect-uri/index.html';
+        showMsg('Redirect URI set to: https://trade.fyers.in/api-login/redirect-uri/index.html', 'info');
+      }
+    });
+
     // Copy Redirect URI
     copyRedirectBtn?.addEventListener('click', () => {
       const uri = redirectUriInput?.value?.trim() || '';
@@ -791,7 +800,7 @@ class TradeViewApp {
     launchLoginBtn?.addEventListener('click', async () => {
       const appId = appIdInput?.value?.trim() || '';
       const secret = secretKeyInput?.value?.trim() || '';
-      const redirectUri = redirectUriInput?.value?.trim() || (window.location.origin + '/api/fyers/callback');
+      const redirectUri = redirectUriInput?.value?.trim() || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
 
       if (!appId || !secret) {
         showMsg('Please provide both App ID and Secret Key from myapi.fyers.in first.', 'error');
@@ -832,7 +841,7 @@ class TradeViewApp {
       const code = authCodeInput?.value?.trim() || '';
       const appId = appIdInput?.value?.trim() || '';
       const secret = secretKeyInput?.value?.trim() || '';
-      const redirectUri = redirectUriInput?.value?.trim() || (window.location.origin + '/api/fyers/callback');
+      const redirectUri = redirectUriInput?.value?.trim() || 'https://trade.fyers.in/api-login/redirect-uri/index.html';
 
       if (!code) {
         showMsg('Please paste the auth_code or full redirected browser URL first.', 'error');
